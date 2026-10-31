@@ -49,8 +49,11 @@ public final class SubscriptionDtos {
       String customerName,
       Long planId,
       String planName,
+      String billingPeriod,
       LocalDate startDate,
       LocalDate expiryDate,
+      LocalDate nextBillingDate,
+      LocalDate lastBilledDate,
       String paymentTerms,
       SubscriptionState state,
       @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal total,
@@ -59,6 +62,10 @@ public final class SubscriptionDtos {
       Instant updatedAt) {}
 
   public static View view(Subscription s) {
+    var plan =
+        s.plan == null
+            ? null
+            : org.hibernate.Hibernate.unproxy(s.plan, com.brightloop.modules.plan.Plan.class);
     return new View(
         s.id,
         s.number,
@@ -66,8 +73,11 @@ public final class SubscriptionDtos {
         s.customer.getName(),
         s.plan.getId(),
         s.planName,
+        plan != null && plan.billingPeriod != null ? plan.billingPeriod.name() : null,
         s.startDate,
         s.expiryDate,
+        s.nextBillingDate,
+        s.lastBilledDate,
         s.paymentTerms,
         s.state,
         s.total,

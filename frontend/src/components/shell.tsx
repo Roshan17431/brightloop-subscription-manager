@@ -7,15 +7,19 @@ import { toast } from "sonner";
 import {
   ArrowUpRight,
   Boxes,
+  CalendarClock,
   ChevronDown,
   CircleHelp,
   CreditCard,
+  FileText,
   LayoutDashboard,
   Layers3,
   LogOut,
   Menu,
   Package,
   PanelLeftClose,
+  Percent,
+  ReceiptText,
   Settings2,
   Users,
   X,
@@ -73,11 +77,15 @@ export function Shell({
   const nav = [
     { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { label: "Subscriptions", href: "/subscriptions", icon: CreditCard },
+    { label: "Invoices", href: "/invoices", icon: FileText },
     ...(user.role !== "CUSTOMER"
       ? [
+          { label: "Billing", href: "/billing", icon: CalendarClock },
           { label: "Customers", href: "/customers", icon: Users },
           { label: "Products", href: "/products", icon: Package },
           { label: "Plans", href: "/plans", icon: Boxes },
+          { label: "Taxes", href: "/taxes", icon: ReceiptText },
+          { label: "Discounts", href: "/discounts", icon: Percent },
         ]
       : []),
     ...(user.role === "ADMIN"
@@ -90,11 +98,11 @@ export function Shell({
         <button
           aria-label="Close navigation"
           onClick={() => setMobile(false)}
-          className="fixed inset-0 z-30 bg-slate-950/25 lg:hidden"
+          className="no-print fixed inset-0 z-30 bg-slate-950/25 lg:hidden"
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[232px] flex-col border-r border-slate-200/80 bg-white px-4 py-7 transition-transform lg:translate-x-0 ${mobile ? "translate-x-0" : "-translate-x-full"}`}
+        className={`no-print fixed inset-y-0 left-0 z-40 flex w-[232px] flex-col border-r border-slate-200/80 bg-white px-4 py-7 transition-transform lg:translate-x-0 ${mobile ? "translate-x-0" : "-translate-x-full"}`}
       >
         <Link
           href="/dashboard"
@@ -175,7 +183,7 @@ export function Shell({
         </button>
       </aside>
       <div className="lg:pl-[232px]">
-        <header className="flex h-[76px] items-center justify-between border-b border-slate-200/70 bg-white/85 px-5 sm:px-9">
+        <header className="no-print flex h-[76px] items-center justify-between border-b border-slate-200/70 bg-white/85 px-5 sm:px-9">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -214,7 +222,7 @@ export function Shell({
         <main className="mx-auto w-full min-w-0 max-w-[1500px] px-5 py-8 sm:px-9 sm:py-9">
           {children(user)}
         </main>
-        <footer className="mx-5 flex justify-between border-t border-slate-200/70 py-6 text-[10px] text-slate-400 sm:mx-9">
+        <footer className="no-print mx-5 flex justify-between border-t border-slate-200/70 py-6 text-[10px] text-slate-400 sm:mx-9">
           <span>© {new Date().getFullYear()} Brightloop</span>
           <span>Keep good things going.</span>
         </footer>

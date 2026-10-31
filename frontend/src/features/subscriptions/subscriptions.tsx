@@ -26,7 +26,9 @@ import { api, errorMessage, queryString } from "@/lib/api";
 import { human, money, adjustment } from "@/lib/utils";
 import {
   states,
+  type BillingRun,
   type Customer,
+  type Invoice,
   type Page,
   type Plan,
   type Product,
@@ -189,6 +191,14 @@ export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
     queryFn: ({ signal }) =>
       api<Subscription>(`/subscriptions/${id}`, { signal }),
   });
+  const subInvoices = useQuery({
+    queryKey: ["invoices", "subscription", id],
+    queryFn: ({ signal }) =>
+      api<Page<Invoice>>(
+        `/invoices${queryString({ subscriptionId: Number(id), page: 0, size: 20 })}`,
+        { signal },
+      ),
+  });
   const transition = useMutation({
     mutationFn: (state: string) =>
       api(`/subscriptions/${id}/transition`, {
@@ -198,6 +208,24 @@ export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["subscriptions"] });
       toast.success("Subscription moved to the next state.");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  const billNow = useMutation({
+    mutationFn: (billingDate: string) =>
+      api<BillingRun>("/billing/run", {
+        method: "POST",
+        body: { billingDate, subscriptionId: Number(id) },
+      }),
+    onSuccess: (run) => {
+      client.invalidateQueries({ queryKey: ["subscriptions"] });
+      client.invalidateQueries({ queryKey: ["invoices"] });
+      client.invalidateQueries({ queryKey: ["billing-runs"] });
+      toast.success(
+        run.invoicesGenerated > 0
+          ? `Generated ${run.invoicesGenerated} invoice for this subscription.`
+          : "Subscription evaluated; no new due billing cycle on this date.",
+      );
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
@@ -227,6 +255,19 @@ export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
                   <Pencil />
                   Edit draft
                 </Link>
+              </Button>
+            )}
+            {user.role === "ADMIN" && s.state === "ACTIVE" && (
+              <Button
+                variant="outline"
+                disabled={billNow.isPending}
+                onClick={() =>
+                  billNow.mutate(
+                    s.nextBillingDate || new Date().toISOString().slice(0, 10),
+                  )
+                }
+              >
+                {billNow.isPending ? "Billing…" : "Generate due invoice"}
               </Button>
             )}
             {user.role !== "CUSTOMER" && index < states.length - 1 && (
@@ -269,10 +310,19 @@ export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
         </div>
         <dl className="grid gap-7 sm:grid-cols-3">
           <DetailValue label="Customer">{s.customerName}</DetailValue>
-          <DetailValue label="Plan">{s.planName}</DetailValue>
+          <DetailValue label="Plan">
+            {s.planName}
+            {s.billingPeriod ? ` (${human(s.billingPeriod)})` : ""}
+          </DetailValue>
           <DetailValue label="Payment terms">{s.paymentTerms}</DetailValue>
           <DetailValue label="Start date">{s.startDate}</DetailValue>
           <DetailValue label="Expiry date">{s.expiryDate}</DetailValue>
+          <DetailValue label="Next billing date">
+            {s.nextBillingDate || s.startDate}
+          </DetailValue>
+          <DetailValue label="Last billed date">
+            {s.lastBilledDate || "Not billed yet"}
+          </DetailValue>
           <DetailValue label="Line total">{money(s.total)}</DetailValue>
         </dl>
       </section>
@@ -316,10 +366,79 @@ export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
           <span className="text-lg font-semibold">{money(s.total)}</span>
         </div>
       </section>
-      <p className="mt-4 text-xs text-slate-400">
-        This is a subscription record. Invoices and payments are handled in a
-        later phase.
-      </p>
+      <section className="card mt-6 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-100 p-5">
+          <div>
+            <h2 className="font-semibold">Generated invoices</h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Invoices produced from recurring billing cycles for this
+              subscription.
+            </p>
+          </div>
+          <Link
+            href="/invoices"
+            className="text-xs font-medium text-violet-600"
+          >
+            All invoices
+          </Link>
+        </div>
+        {subInvoices.isPending ? (
+          <div className="p-5">
+            <Loading />
+          </div>
+        ) : subInvoices.error ? (
+          <div className="p-5">
+            <ErrorState error={subInvoices.error} />
+          </div>
+        ) : !subInvoices.data.content.length ? (
+          <Empty
+            title="No invoices generated yet"
+            description="Invoices are created when this subscription is active and recurring billing executes."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Invoice</th>
+                  <th>Billing period</th>
+                  <th>Issue date</th>
+                  <th>State</th>
+                  <th>Total</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subInvoices.data.content.map((inv) => (
+                  <tr key={inv.id}>
+                    <td>
+                      <Link href={`/invoices/${inv.id}`}>
+                        {inv.invoiceNumber}
+                      </Link>
+                    </td>
+                    <td className="text-slate-500">
+                      {inv.billingPeriodStart} → {inv.billingPeriodEnd}
+                    </td>
+                    <td className="text-slate-500">{inv.issueDate}</td>
+                    <td>
+                      <Badge value={inv.state} />
+                    </td>
+                    <td className="font-medium">{money(inv.total)}</td>
+                    <td>
+                      <Link
+                        href={`/invoices/${inv.id}`}
+                        aria-label={`View ${inv.invoiceNumber}`}
+                      >
+                        <ArrowUpRight className="size-4 text-slate-400" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </>
   );
 }

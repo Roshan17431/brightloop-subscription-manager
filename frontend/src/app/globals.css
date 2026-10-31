@@ -129,3 +129,14 @@ textarea.input {
 ::selection {
   background: #ddd6fe;
 }
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .lg\:pl-\[232px\] {
+    padding-left: 0 !important;
+  }
+  body {
+    background: white;
+  }
+}

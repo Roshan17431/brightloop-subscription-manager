@@ -1,13 +1,13 @@
 # Brightloop architecture
 
 ## Scope and source
-The supplied Subscription_Management_System.pdf is preserved here as the business specification. phase-1-requirements.md preserves the expanded implementation scope. Phase 1 builds identity, customers, products/variants, plan definitions and subscription lifecycle. Recurring billing, quotation templates, invoices, tax/discount rules, payments and financial analytics are later phases.
+The supplied Subscription_Management_System.pdf is preserved here as the business specification. phase-1-requirements.md preserves the expanded implementation scope. Phase 1 builds identity, customers, products/variants, plan definitions and subscription lifecycle. Phase 2 adds recurring billing execution, invoice generation and lifecycle, PDF/email delivery, and automatic tax and discount engines. Payments and financial analytics belong to later phases.
 
 ## Runtime
 Next.js App Router serves the UI; a same-origin /api/v1 proxy forwards requests to Spring Web MVC. TanStack Query owns server state, React Hook Form/Zod validate forms, and the server remains authoritative. Java 21 and Spring Boot 4 run a modular monolith using PostgreSQL and Flyway. Hibernate validates the migrated schema. Local Compose runs PostgreSQL and Mailpit; application processes run locally for fast development.
 
 ## Boundaries
-com.brightloop.modules contains auth, user, customer, product, plan, subscription and audit features. Constructor-injected services enforce transactions and domain validation. Controllers return DTO envelopes. Foreign keys and unique constraints protect relationships against races. Catalog writes are admin-only; staff manage day-to-day customers/subscriptions. Customers see only their own records.
+com.brightloop.modules contains auth, user, customer, product, plan, subscription, tax, discount, invoice, billing and audit features. Constructor-injected services enforce transactions and domain validation. Controllers return DTO envelopes. Foreign keys and unique constraints protect relationships against races. Catalog, tax, discount, and manual billing execution writes are admin-only; staff manage day-to-day customers, subscriptions, and invoice confirmations/cancellations/emails. Customers see only their own subscriptions and invoices.
 
 ## Identity
 Persistent server-side sessions use HttpOnly cookies and CSRF protection. No browser localStorage tokens. Reset tokens are cryptographically random, stored hashed, expire, and can be consumed once. SMTP delivers links; Mailpit is development delivery only. Initial admin provisioning requires explicit environment variables, never a seeded password. Role mutations are admin-only and audited.

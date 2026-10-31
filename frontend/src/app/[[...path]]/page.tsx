@@ -25,6 +25,19 @@ import {
   SubscriptionDetail,
   SubscriptionEditor,
 } from "@/features/subscriptions/subscriptions";
+import { InvoiceList, InvoiceDetail } from "@/features/billing/invoices";
+import {
+  BillingDashboard,
+  BillingRunDetail,
+} from "@/features/billing/billing";
+import {
+  TaxList,
+  TaxDetail,
+  TaxEditor,
+  DiscountList,
+  DiscountDetail,
+  DiscountEditor,
+} from "@/features/billing/taxes-discounts";
 import type { User } from "@/lib/types";
 function App() {
   const pathname = usePathname();
@@ -97,6 +110,33 @@ function Workspace({ path, user }: { path: string[]; user: User }) {
         <SubscriptionEditor id={id === "new" ? undefined : id} user={user} />
       );
     return <SubscriptionDetail id={id} user={user} />;
+  }
+  if (section === "invoices") {
+    if (!id) return <InvoiceList user={user} />;
+    return <InvoiceDetail id={id} user={user} />;
+  }
+  if (section === "billing") {
+    if (user.role === "CUSTOMER") return forbidden();
+    if (!id) return <BillingDashboard user={user} />;
+    return <BillingRunDetail id={id} user={user} />;
+  }
+  if (section === "taxes") {
+    if (user.role === "CUSTOMER") return forbidden();
+    if (!id) return <TaxList user={user} />;
+    if (id === "new" || action === "edit") {
+      if (user.role !== "ADMIN") return forbidden();
+      return <TaxEditor id={id === "new" ? undefined : id} />;
+    }
+    return <TaxDetail id={id} user={user} />;
+  }
+  if (section === "discounts") {
+    if (user.role === "CUSTOMER") return forbidden();
+    if (!id) return <DiscountList user={user} />;
+    if (id === "new" || action === "edit") {
+      if (user.role !== "ADMIN") return forbidden();
+      return <DiscountEditor id={id === "new" ? undefined : id} />;
+    }
+    return <DiscountDetail id={id} user={user} />;
   }
   return (
     <Empty

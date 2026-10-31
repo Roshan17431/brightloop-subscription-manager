@@ -115,7 +115,28 @@ The server calculates and snapshots each line's `unitPrice` from product sales p
 
 Responses contain `id`, unique `number`, customer and plan IDs/names, dates, payment terms, `state`, `total`, and `lines`. Lines include product/variant identity and names, quantity, unit price, tax rate and calculated amount.
 
-The strict lifecycle is `DRAFT → QUOTATION → CONFIRMED → ACTIVE → CLOSED`. Skipping, repeating or reversing states fails. Closed subscriptions cannot be edited. Recurring billing, invoices, payments, pause/renewal automation and revenue reports are excluded from Phase 1.
+The strict lifecycle is `DRAFT → QUOTATION → CONFIRMED → ACTIVE → CLOSED`. Skipping, repeating or reversing states fails. Closed subscriptions cannot be edited.
+
+## Tax Rules, Discounts, Recurring Billing, and Invoices (Phase 2)
+
+| Method | Path after `/api/v1` | Purpose |
+| --- | --- | --- |
+| GET, POST | `/taxes` (or `/tax-rules`) | List tax rules / Admin-only create tax rule |
+| GET, PUT, DELETE | `/taxes/{id}` | Read / Admin-only update or delete tax rule |
+| GET, POST | `/discounts` (or `/discount-rules`) | List discounts / Admin-only create discount rule |
+| GET, PUT, DELETE | `/discounts/{id}` | Read / Admin-only update or delete discount rule |
+| GET | `/billing/due` | Staff/Admin list of active subscriptions due as of `billingDate` |
+| GET | `/billing/runs` | Staff/Admin paginated billing execution history |
+| GET | `/billing/runs/{id}` | Staff/Admin billing run detail and per-subscription items |
+| POST | `/billing/run` (or `/billing/runs`) | Admin-only trigger recurring billing (`{billingDate, idempotencyKey, subscriptionId}`) |
+| POST | `/billing/runs/{id}/retry` | Admin-only retry failed items from a billing run |
+| GET | `/invoices` | Paginated invoice list (`q`, `state`, `subscriptionId`, `customerId`); customer-isolated |
+| GET | `/invoices/{id}` | Invoice detail with historical pricing, discount, and tax snapshots |
+| GET | `/invoices/{id}/pdf` | Download binary `application/pdf` invoice document |
+| POST | `/invoices/{id}/transition` | Staff/Admin transition (`CONFIRMED`, `CANCELLED`; `PAID` requires Phase 3 payment evidence) |
+| POST | `/invoices/{id}/confirm` | Staff/Admin confirm draft invoice |
+| POST | `/invoices/{id}/cancel` | Staff/Admin cancel draft or confirmed invoice |
+| POST | `/invoices/{id}/send` | Staff/Admin deliver invoice email via SMTP |
 
 ## Executable HTTP verification
 
