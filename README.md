@@ -53,34 +53,9 @@ For a complete phase-by-phase breakdown, see [Implemented Features (`docs/featur
 
 ---
 
-## 5. Application Screenshots
 
-All screenshots below are captured from the running local application backed by PostgreSQL 17:
 
-### Executive Financial Analytics Dashboard
-![Executive Financial Analytics Dashboard](demo/verification/frames/06-analytics-6.png)
 
-### Revenue, Collection & MRR Charts
-![Executive Revenue and MRR Charts](demo/verification/frames/06-analytics-13.png)
-
-### Product Variant Pricing & Plan Policy Configuration
-![Product Variant Pricing](output/playwright/catalog/product-odoo-560.png)
-![Subscription Plan Details and Policies](demo/verification/frames/02-catalog-32.png)
-
-### Subscription Lifecycle, Pause, Resume & Renewal
-![Subscription Lifecycle and Controls](demo/verification/frames/03-lifecycle-37.png)
-
-### Automated Recurring Invoice with Tax & Discount Snapshots
-![Automated Invoice Calculation](demo/verification/frames/04-billing-38.png)
-
-### Partial & Full Payment Reconciliation
-![Invoice Payment Reconciliation History](demo/verification/frames/05-payments-31.png)
-
-### Customer Self-Service Subscription & Quotation Conversion
-![Customer Self-Service Subscription View](demo/verification/frames/07-portal-quotations-final-11.png)
-![Quotation Conversion to Active Subscription](demo/verification/frames/07-portal-quotations-final-31.png)
-
----
 
 ## 6. Technology Stack
 
