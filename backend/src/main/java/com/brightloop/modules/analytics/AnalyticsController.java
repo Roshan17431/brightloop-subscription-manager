@@ -262,9 +262,15 @@ public class AnalyticsController {
       @RequestParam(required = false) InvoiceState invoiceState,
       @RequestParam(required = false) PaymentMethod paymentMethod,
       @RequestParam(required = false) Integer windowDays) {
+    String safeSection =
+        switch (section == null ? "revenue" : section.trim().toLowerCase(java.util.Locale.ROOT)) {
+          case "subscriptions", "payments", "receivables" ->
+              section.trim().toLowerCase(java.util.Locale.ROOT);
+          default -> "revenue";
+        };
     String csv =
         analytics.exportCsv(
-            section,
+            safeSection,
             buildFilters(
                 fromDate,
                 toDate,
@@ -280,7 +286,9 @@ public class AnalyticsController {
     var headers = new HttpHeaders();
     headers.setContentType(new MediaType("text", "csv", StandardCharsets.UTF_8));
     headers.setContentDisposition(
-        ContentDisposition.attachment().filename("brightloop-" + section + "-report.csv").build());
+        ContentDisposition.attachment()
+            .filename("brightloop-" + safeSection + "-report.csv")
+            .build());
     return ResponseEntity.ok().headers(headers).body(csv.getBytes(StandardCharsets.UTF_8));
   }
 

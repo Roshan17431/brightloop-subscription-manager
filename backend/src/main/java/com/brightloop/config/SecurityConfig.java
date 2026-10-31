@@ -9,6 +9,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.*;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.*;
@@ -17,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.csrf.*;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.*;
 import tools.jackson.databind.ObjectMapper;
 
@@ -64,6 +66,17 @@ public class SecurityConfig {
       HttpSessionSecurityContextRepository contexts)
       throws Exception {
     http.cors(c -> {})
+        .headers(
+            h ->
+                h.frameOptions(f -> f.deny())
+                    .contentTypeOptions(Customizer.withDefaults())
+                    .referrerPolicy(
+                        r ->
+                            r.policy(
+                                ReferrerPolicyHeaderWriter.ReferrerPolicy
+                                    .STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                    .permissionsPolicyHeader(
+                        p -> p.policy("camera=(), microphone=(), geolocation=()")))
         .csrf(
             c ->
                 c.csrfTokenRepository(csrf)
@@ -113,6 +126,14 @@ public class SecurityConfig {
                     .requestMatchers(
                         HttpMethod.GET,
                         "/api/v1/customers",
+                        "/api/v1/taxes",
+                        "/api/v1/taxes/**",
+                        "/api/v1/tax-rules",
+                        "/api/v1/tax-rules/**",
+                        "/api/v1/discounts",
+                        "/api/v1/discounts/**",
+                        "/api/v1/discount-rules",
+                        "/api/v1/discount-rules/**",
                         "/api/v1/billing/**",
                         "/api/v1/analytics/**",
                         "/api/v1/quotation-templates",

@@ -61,6 +61,9 @@ public class PaymentService {
       LocalDate toDate,
       int page,
       int size) {
+    if (fromDate != null && toDate != null && toDate.isBefore(fromDate)) {
+      throw new IllegalArgumentException("End date must be on or after start date");
+    }
     var user = current.get();
     Long effectiveCustomerId = customerId;
     if (user.role == Role.CUSTOMER) {
@@ -72,6 +75,16 @@ public class PaymentService {
               .id;
       if (customerId != null && !customerId.equals(ownCustomerId)) {
         throw ApiException.forbidden();
+      }
+      if (invoiceId != null) {
+        var inv =
+            invoices
+                .findById(invoiceId)
+                .map(v -> org.hibernate.Hibernate.unproxy(v, Invoice.class))
+                .orElseThrow(() -> ApiException.notFound("Invoice"));
+        if (!inv.customer.getId().equals(ownCustomerId)) {
+          throw ApiException.forbidden();
+        }
       }
       effectiveCustomerId = ownCustomerId;
     }

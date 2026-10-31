@@ -121,10 +121,10 @@ The strict lifecycle is `DRAFT → QUOTATION → CONFIRMED → ACTIVE → CLOSED
 
 | Method | Path after `/api/v1` | Purpose |
 | --- | --- | --- |
-| GET, POST | `/taxes` (or `/tax-rules`) | List tax rules / Admin-only create tax rule |
-| GET, PUT, DELETE | `/taxes/{id}` | Read / Admin-only update or delete tax rule |
-| GET, POST | `/discounts` (or `/discount-rules`) | List discounts / Admin-only create discount rule |
-| GET, PUT, DELETE | `/discounts/{id}` | Read / Admin-only update or delete discount rule |
+| GET, POST | `/taxes` (or `/tax-rules`) | Staff/Admin list tax rules / Admin-only create tax rule |
+| GET, PUT, DELETE | `/taxes/{id}` | Staff/Admin read / Admin-only update or delete tax rule |
+| GET, POST | `/discounts` (or `/discount-rules`) | Staff/Admin list discounts / Admin-only create discount rule |
+| GET, PUT, DELETE | `/discounts/{id}` | Staff/Admin read / Admin-only update or delete discount rule |
 | GET | `/billing/due` | Staff/Admin list of active subscriptions due as of `billingDate` |
 | GET | `/billing/runs` | Staff/Admin paginated billing execution history |
 | GET | `/billing/runs/{id}` | Staff/Admin billing run detail and per-subscription items |

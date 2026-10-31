@@ -39,6 +39,7 @@ public class TaxService {
 
   @Transactional(readOnly = true)
   public PageResponse<TaxDtos.View> list(String q, AccountStatus status, int page, int size) {
+    current.requireManager();
     return PageResponse.from(
         taxes.search(PageResponse.search(q), status, PageResponse.request(page, size)),
         TaxDtos::view);
@@ -46,6 +47,7 @@ public class TaxService {
 
   @Transactional(readOnly = true)
   public TaxDtos.View get(Long id) {
+    current.requireManager();
     return TaxDtos.view(find(id));
   }
 

@@ -49,6 +49,7 @@ public class DiscountService {
 
   @Transactional(readOnly = true)
   public PageResponse<DiscountDtos.View> list(String q, AccountStatus status, int page, int size) {
+    current.requireManager();
     return PageResponse.from(
         discounts.search(PageResponse.search(q), status, PageResponse.request(page, size)),
         DiscountDtos::view);
@@ -56,6 +57,7 @@ public class DiscountService {
 
   @Transactional(readOnly = true)
   public DiscountDtos.View get(Long id) {
+    current.requireManager();
     return DiscountDtos.view(find(id));
   }
 

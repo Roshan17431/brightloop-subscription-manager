@@ -126,11 +126,57 @@ Implemented and verified locally against all 20 Phase 1 acceptance criteria.
   - Phase 5 comprehensive security hardening and Phase 6 deployment/submission remain separate phases by design.
 - Next: Phase 5 testing, security & performance review.
 
-## 5. Testing, Security & Performance — Not started (basic checks included in Phase 1)
-- Implemented/files/tests: Phase 1 test results recorded separately below once executed.
-- Pending: comprehensive security review, deployment hardening, load measurement and performance tuning.
-- Known issues: no claim of sub-two-second performance under scale.
-- Next: test realistic datasets and verify boundaries.
+## 5. Testing, Security & Performance — Completed
+- Implemented:
+  - GitHub Actions CI Reliability (`.github/workflows/ci.yml`):
+    - Root cause identified: `.github/workflows/ci.yml` previously started only `postgres:17-alpine` without an SMTP service container, causing `Phase2BillingIntegrationTest`'s SMTP invoice delivery test (`POST /api/v1/invoices/{id}/send`) to fail on `localhost:1025` in CI, and branch triggers only matched `codex/**` and `main`.
+    - Fix: Added `mailpit` service container (`axllent/mailpit:v1.22`, ports `1025:1025` and `8025:8025`), configured `SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM`, `FRONTEND_URL`, and `NEXT_PUBLIC_API_URL`, and expanded branch triggers to `[main, Phase-1, 'phase-*', 'antigravity/**', 'codex/**']`. (Note: remote CI execution is not claimed until pushed and confirmed on GitHub.)
+  - Security Audit & Hardening:
+    - Restricted `GET /api/v1/taxes/**` (`/tax-rules/**`) and `GET /api/v1/discounts/**` (`/discount-rules/**`) in both `SecurityConfig` and `TaxService`/`DiscountService` (`requireManager()`) to `ADMIN` and `STAFF` so `CUSTOMER` accounts cannot enumerate internal discount promo codes or other customers' subscription-scoped discount rules.
+    - Enforced explicit HTTP security headers in `SecurityConfig`: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: camera=(), microphone=(), geolocation=()`, alongside `HttpOnly` and `SameSite=Lax` session cookies.
+    - Hardened SQL `LIKE` wildcard escaping in `PageResponse.search(String q)` to escape `\` (`\\`) prior to `%` and `_`.
+    - Enforced cross-customer `invoiceId` ownership checks for `CUSTOMER` sessions and date ordering validation (`toDate >= fromDate`) in `PaymentService.list(...)`.
+    - Hardened `AnalyticsService.csvEscape` against CSV formula injection (prefixing leading `=`, `+`, `-`, `@`, `\t`, `\r` with `'` and quoting) and sanitized `section` in `AnalyticsController.exportCsv` `Content-Disposition` headers.
+    - Verified full RBAC and cross-customer IDOR isolation matrix across customers, subscriptions, lifecycle transitions, quotations, invoices, PDF downloads, payments, tax/discount rules, billing runs, analytics, and audit logs (confirming zero plaintext passwords or reset tokens in `audit_logs` and zero stack traces in error envelopes).
+  - Financial Integrity & Lifecycle Edge-Case Verification:
+    - Verified leap-year (`2028-02-29 -> 2029-02-28`) and end-of-month (`Jan 31 -> Feb 28 -> Mar 31 -> Apr 30`) billing schedule advancement, `100%`-discounted zero-value (`0.00`) invoice settlement (`POST /api/v1/invoices/{id}/settle-zero`) without fake payment rows, historical invoice snapshot immutability after product price and tax rate edits, database `CHECK` constraint enforcement (`state <> 'PAID' OR (payment_reference IS NOT NULL AND paid_at IS NOT NULL)`), 4-thread concurrent billing/payment serialization, and payment reversal reconciliation.
+  - Performance Optimization & 3,000+ Subscription Benchmark:
+    - Eliminated N+1 queries in `BillingService.listRuns` via batch loading (`BillingRunItemRepository.findByBillingRunIdInOrderByIdAsc`).
+    - Optimized `AnalyticsService.getRenewals` to compute pre-tax cycle totals via an inline subquery on the bounded `LIMIT 50` upcoming renewal rows instead of scanning all subscriptions.
+    - Added repeatable k6 load script (`infrastructure/k6-load-test.js`) and automated PostgreSQL 3,000+ subscription benchmark (`Phase5SecurityFinancialPerformanceIntegrationTest`).
+- Measured Performance Benchmark (PostgreSQL 17.11 — 3,000+ Subscriptions, 3,000+ Invoices, 2,000+ Payments):
+
+| Endpoint / Scenario | p50 Latency | p95 Latency | p99 Latency | Throughput (req/s) | Errors |
+| --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/analytics/overview` | 35.56 ms | 51.34 ms | 51.34 ms | 27.1 req/s | 0 |
+| `GET /api/v1/analytics/revenue` | 5.32 ms | 6.09 ms | 6.09 ms | 186.3 req/s | 0 |
+| `GET /api/v1/analytics/subscriptions` | 24.26 ms | 34.33 ms | 34.33 ms | 39.8 req/s | 0 |
+| `GET /api/v1/analytics/payments` | 3.18 ms | 4.01 ms | 4.01 ms | 300.6 req/s | 0 |
+| `GET /api/v1/analytics/receivables` | 3.35 ms | 4.27 ms | 4.27 ms | 291.7 req/s | 0 |
+| `GET /api/v1/analytics/renewals` | 9.79 ms | 10.31 ms | 10.31 ms | 102.4 req/s | 0 |
+| `GET /api/v1/analytics/reports/export` | 2.77 ms | 3.64 ms | 3.64 ms | 356.7 req/s | 0 |
+| `GET /api/v1/subscriptions?page=0&size=20` | 6.66 ms | 7.75 ms | 7.75 ms | 149.5 req/s | 0 |
+| `GET /api/v1/invoices?page=0&size=20&overdue=true` | 15.19 ms | 16.69 ms | 16.69 ms | 72.8 req/s | 0 |
+| `GET /api/v1/payments?page=0&size=20` | 5.76 ms | 6.96 ms | 6.96 ms | 174.2 req/s | 0 |
+| `CONCURRENT 20 VUs GET /api/v1/analytics/overview` | 207.36 ms | 378.23 ms | 454.75 ms | 80.6 req/s | 0 |
+
+- Files changed:
+  - `.github/workflows/ci.yml`
+  - `backend/src/main/java/com/brightloop/config/SecurityConfig.java`, `response/PageResponse.java`
+  - `backend/src/main/java/com/brightloop/modules/tax/TaxService.java`, `modules/discount/DiscountService.java`
+  - `backend/src/main/java/com/brightloop/modules/payment/PaymentService.java`
+  - `backend/src/main/java/com/brightloop/modules/billing/{BillingRunItemRepository,BillingService}.java`
+  - `backend/src/main/java/com/brightloop/modules/analytics/{AnalyticsController,AnalyticsService}.java`
+  - `backend/src/test/java/com/brightloop/integration/Phase5SecurityFinancialPerformanceIntegrationTest.java`
+  - `frontend/src/components/shell.test.tsx`
+  - `infrastructure/k6-load-test.js`
+  - `docs/{implementation-status.md,api.md,architecture.md}`, `README.md`
+- Tests executed:
+  - Backend `mvn verify`: **44 tests passed, 0 failures, 0 errors, 0 skips** against PostgreSQL 17.11 and Mailpit.
+  - Frontend `npm run typecheck`, `npm test` (**9 test files / 48 tests passed**), and `npm run build`: all passed cleanly.
+- Known issues / boundaries:
+  - Local verification is complete on branch `phase-5`; remote GitHub Actions execution will run when pushed. Production cloud deployment belongs to Phase 6.
+- Next: Phase 6 deployment & submission (only upon explicit user instruction).
 
 ## 6. Deployment & Submission — Not started
 - Implemented/files/tests: local developer infrastructure only.
