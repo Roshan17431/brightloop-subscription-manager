@@ -79,7 +79,7 @@ npm test
 npm run build
 ```
 
-HTTP smoke test needs a running backend and explicit admin credentials; see [API documentation](docs/api.md). Tests create records with randomized names; use a disposable development database.
+HTTP smoke test and k6 load test need a running backend and explicit admin credentials; see [API documentation](docs/api.md) and `infrastructure/k6-load-test.js`. Tests create records with randomized names; use a disposable development database.
 
 ## Troubleshooting
 

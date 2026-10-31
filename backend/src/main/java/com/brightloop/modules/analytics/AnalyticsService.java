@@ -482,8 +482,7 @@ public class AnalyticsService {
     validateFilters(f);
     LocalDate asOf = f.effectiveAsOfDate();
     int windowDays = f.effectiveWindowDays();
-    SubscriptionComputation subComp = computeSubscriptionMetrics(f, asOf);
-    return computeRenewals(f, asOf, windowDays, 50, subComp.mrrBySubId, subComp.cycleBySubId);
+    return computeRenewals(f, asOf, windowDays, 50, null, null);
   }
 
   @Transactional(readOnly = true)
@@ -658,11 +657,25 @@ public class AnalyticsService {
   }
 
   private static String csvEscape(String value) {
-    if (value == null) return "";
-    if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
-      return "\"" + value.replace("\"", "\"\"") + "\"";
+    if (value == null || value.isEmpty()) return "";
+    String sanitized = value;
+    char first = sanitized.charAt(0);
+    if (first == '='
+        || first == '+'
+        || first == '-'
+        || first == '@'
+        || first == '\t'
+        || first == '\r') {
+      sanitized = "'" + sanitized;
     }
-    return value;
+    if (sanitized.contains(",")
+        || sanitized.contains("\"")
+        || sanitized.contains("\n")
+        || sanitized.contains("\r")
+        || sanitized.startsWith("'")) {
+      return "\"" + sanitized.replace("\"", "\"\"") + "\"";
+    }
+    return sanitized;
   }
 
   // --- Internal SQL & Aggregation Helpers ---
@@ -1046,7 +1059,8 @@ public class AnalyticsService {
 
     String upcomingSql =
         "SELECT s.id, s.number, s.customer_id, c.name AS customer_name, s.plan_id, s.plan_name, "
-            + "p.billing_period, p.renewal_allowed, s.state, s.next_billing_date, s.expiry_date, s.total "
+            + "p.billing_period, p.renewal_allowed, s.state, s.next_billing_date, s.expiry_date, s.total, "
+            + "COALESCE((SELECT SUM(sl.unit_price * sl.quantity) FROM subscription_lines sl WHERE sl.subscription_id = s.id), s.total) AS pre_tax_cycle "
             + "FROM subscriptions s "
             + "JOIN plans p ON p.id = s.plan_id "
             + "JOIN customers c ON c.id = s.customer_id "
@@ -1063,9 +1077,15 @@ public class AnalyticsService {
               LocalDate nextBill = rs.getObject("next_billing_date", LocalDate.class);
               LocalDate expiry = rs.getObject("expiry_date", LocalDate.class);
               BillingPeriod bp = BillingPeriod.valueOf(rs.getString("billing_period"));
+              BigDecimal fallbackCycle = scale2(rs.getBigDecimal("pre_tax_cycle"));
               BigDecimal cycle =
-                  cycleBySubId.getOrDefault(id, scale2(rs.getBigDecimal("total")));
-              BigDecimal mrr = mrrBySubId.getOrDefault(id, normalizeToMrr(cycle, bp));
+                  cycleBySubId != null
+                      ? cycleBySubId.getOrDefault(id, fallbackCycle)
+                      : fallbackCycle;
+              BigDecimal mrr =
+                  mrrBySubId != null
+                      ? mrrBySubId.getOrDefault(id, normalizeToMrr(cycle, bp))
+                      : normalizeToMrr(cycle, bp);
               return new UpcomingRenewalItem(
                   id,
                   rs.getString("number"),
@@ -1092,7 +1112,8 @@ public class AnalyticsService {
 
     String expiringSql =
         "SELECT s.id, s.number, s.customer_id, c.name AS customer_name, s.plan_id, s.plan_name, "
-            + "p.billing_period, p.renewal_allowed, s.state, s.expiry_date, s.total "
+            + "p.billing_period, p.renewal_allowed, s.state, s.expiry_date, s.total, "
+            + "COALESCE((SELECT SUM(sl.unit_price * sl.quantity) FROM subscription_lines sl WHERE sl.subscription_id = s.id), s.total) AS pre_tax_cycle "
             + "FROM subscriptions s "
             + "JOIN plans p ON p.id = s.plan_id "
             + "JOIN customers c ON c.id = s.customer_id "
@@ -1108,9 +1129,15 @@ public class AnalyticsService {
               long id = rs.getLong("id");
               LocalDate expiry = rs.getObject("expiry_date", LocalDate.class);
               BillingPeriod bp = BillingPeriod.valueOf(rs.getString("billing_period"));
+              BigDecimal fallbackCycle = scale2(rs.getBigDecimal("pre_tax_cycle"));
               BigDecimal cycle =
-                  cycleBySubId.getOrDefault(id, scale2(rs.getBigDecimal("total")));
-              BigDecimal mrr = mrrBySubId.getOrDefault(id, normalizeToMrr(cycle, bp));
+                  cycleBySubId != null
+                      ? cycleBySubId.getOrDefault(id, fallbackCycle)
+                      : fallbackCycle;
+              BigDecimal mrr =
+                  mrrBySubId != null
+                      ? mrrBySubId.getOrDefault(id, normalizeToMrr(cycle, bp))
+                      : normalizeToMrr(cycle, bp);
               return new ExpiringSubscriptionItem(
                   id,
                   rs.getString("number"),

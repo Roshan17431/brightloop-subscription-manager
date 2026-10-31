@@ -25,6 +25,10 @@ public record PageResponse<T>(
   public static String search(String q) {
     if (q == null) return "";
     if (q.length() > 200) throw new IllegalArgumentException("Search is too long");
-    return q.trim().toLowerCase(java.util.Locale.ROOT).replace("%", "\\%").replace("_", "\\_");
+    return q.trim()
+        .toLowerCase(java.util.Locale.ROOT)
+        .replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_");
   }
 }

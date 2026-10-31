@@ -77,9 +77,16 @@ public class BillingService {
   public PageResponse<BillingDtos.RunView> listRuns(String q, String status, int page, int size) {
     current.requireManager();
     String filterStatus = (status == null || status.isBlank()) ? null : status.trim();
+    var runPage = runs.search(PageResponse.search(q), filterStatus, PageResponse.request(page, size));
+    var runIds = runPage.getContent().stream().map(r -> r.id).toList();
+    Map<Long, List<BillingRunItem>> itemsByRunId = new HashMap<>();
+    if (!runIds.isEmpty()) {
+      for (var item : items.findByBillingRunIdInOrderByIdAsc(runIds)) {
+        itemsByRunId.computeIfAbsent(item.billingRun.getId(), k -> new ArrayList<>()).add(item);
+      }
+    }
     return PageResponse.from(
-        runs.search(PageResponse.search(q), filterStatus, PageResponse.request(page, size)),
-        r -> BillingDtos.view(r, items.findByBillingRunIdOrderByIdAsc(r.id)));
+        runPage, r -> BillingDtos.view(r, itemsByRunId.getOrDefault(r.id, List.of())));
   }
 
   @Transactional(readOnly = true)
