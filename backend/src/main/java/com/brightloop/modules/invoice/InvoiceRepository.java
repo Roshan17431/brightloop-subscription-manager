@@ -15,7 +15,13 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
   @Query(
       "select i from Invoice i where (:customerId is null or i.customer.id = :customerId) and"
           + " (:subscriptionId is null or i.subscription.id = :subscriptionId) and (:state is null"
-          + " or i.state = :state) and (lower(i.invoiceNumber) like concat('%', :q, '%') or"
+          + " or i.state = :state) and (:outstandingOnly = false or (i.state ="
+          + " com.brightloop.modules.invoice.InvoiceState.CONFIRMED and i.amountPaid < i.total))"
+          + " and (:overdueOnly = false or (i.state ="
+          + " com.brightloop.modules.invoice.InvoiceState.CONFIRMED and i.amountPaid < i.total"
+          + " and i.dueDate < :asOfDate)) and (:partiallyPaidOnly = false or (i.state ="
+          + " com.brightloop.modules.invoice.InvoiceState.CONFIRMED and i.amountPaid > 0 and"
+          + " i.amountPaid < i.total)) and (lower(i.invoiceNumber) like concat('%', :q, '%') or"
           + " lower(i.subscriptionNumber) like concat('%', :q, '%') or lower(i.customerName) like"
           + " concat('%', :q, '%') or lower(i.planName) like concat('%', :q, '%'))")
   Page<Invoice> search(
@@ -23,6 +29,10 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
       InvoiceState state,
       Long subscriptionId,
       Long customerId,
+      boolean outstandingOnly,
+      boolean overdueOnly,
+      boolean partiallyPaidOnly,
+      LocalDate asOfDate,
       Pageable pageable);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)

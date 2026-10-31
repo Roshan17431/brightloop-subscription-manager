@@ -61,7 +61,15 @@ export const states = [
   "ACTIVE",
   "CLOSED",
 ] as const;
-export type SubscriptionState = (typeof states)[number];
+export const subscriptionFilterStates = [
+  "DRAFT",
+  "QUOTATION",
+  "CONFIRMED",
+  "ACTIVE",
+  "PAUSED",
+  "CLOSED",
+] as const;
+export type SubscriptionState = (typeof subscriptionFilterStates)[number];
 export type Subscription = {
   id: number;
   number: string;
@@ -70,6 +78,10 @@ export type Subscription = {
   planId: number;
   planName: string;
   billingPeriod?: "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+  pausingAllowed?: boolean;
+  renewalAllowed?: boolean;
+  earlyClosingAllowed?: boolean;
+  automaticClosing?: boolean;
   startDate: string;
   expiryDate: string;
   nextBillingDate?: string;
@@ -77,6 +89,22 @@ export type Subscription = {
   paymentTerms: string;
   state: SubscriptionState;
   total: number | string;
+  pausedAt?: string;
+  pausedBy?: string;
+  pausedDate?: string;
+  resumedAt?: string;
+  resumedBy?: string;
+  totalPausedDays?: number;
+  closedAt?: string;
+  closedBy?: string;
+  closureReason?: string;
+  renewedAt?: string;
+  renewedBy?: string;
+  renewalCount?: number;
+  quotationTemplateId?: number;
+  quotationId?: number;
+  quotationValidUntil?: string;
+  convertedFromQuotationAt?: string;
   lines: {
     id: number;
     productId: number;
@@ -143,6 +171,12 @@ export type Invoice = {
   discountName?: string;
   taxAmount: number | string;
   total: number | string;
+  amountPaid?: number | string;
+  outstandingAmount?: number | string;
+  paymentStatus?: "UNPAID" | "PARTIALLY_PAID" | "PAID" | "CANCELLED";
+  partiallyPaid?: boolean;
+  overdue?: boolean;
+  daysOverdue?: number;
   idempotencyKey: string;
   billingRunId?: number;
   paymentReference?: string;
@@ -150,8 +184,134 @@ export type Invoice = {
   confirmedAt?: string;
   cancelledAt?: string;
   sentAt?: string;
+  lastFollowupAt?: string;
+  followupNotes?: string;
+  followupBy?: string;
   notes?: string;
   lines: InvoiceLine[];
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export const paymentMethods = [
+  "BANK_TRANSFER",
+  "CASH",
+  "UPI",
+  "CARD",
+  "OTHER",
+] as const;
+export type PaymentMethod = (typeof paymentMethods)[number];
+
+export const paymentStatuses = ["COMPLETED", "REVERSED"] as const;
+export type PaymentStatus = (typeof paymentStatuses)[number];
+
+export type Payment = {
+  id: number;
+  paymentReference: string;
+  idempotencyKey: string;
+  invoiceId: number;
+  invoiceNumber: string;
+  customerId: number;
+  customerName: string;
+  method: PaymentMethod;
+  amount: number | string;
+  paymentDate: string;
+  status: PaymentStatus;
+  note?: string;
+  recordedBy: string;
+  reversedAt?: string;
+  reversedBy?: string;
+  reversalReason?: string;
+  reversalReference?: string;
+  invoiceTotal?: number | string;
+  invoiceAmountPaid?: number | string;
+  invoiceOutstandingAmount?: number | string;
+  invoiceState?: InvoiceState;
+  invoicePaymentStatus?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type QuotationTemplateLine = {
+  id: number;
+  productId: number;
+  productName: string;
+  variantId?: number;
+  variantName?: string;
+  quantity: number;
+  unitPrice: number | string;
+  taxRate: number | string;
+  amount: number | string;
+};
+
+export type QuotationTemplate = {
+  id: number;
+  name: string;
+  description?: string;
+  planId: number;
+  planName: string;
+  billingPeriod?: string;
+  validityDays: number;
+  paymentTerms: string;
+  status: "ACTIVE" | "INACTIVE";
+  estimatedTotal: number | string;
+  lines: QuotationTemplateLine[];
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export const quotationStates = [
+  "DRAFT",
+  "SENT",
+  "CONFIRMED",
+  "CONVERTED",
+  "EXPIRED",
+  "CANCELLED",
+] as const;
+export type QuotationState = (typeof quotationStates)[number];
+
+export type QuotationLine = {
+  id: number;
+  productId: number;
+  productName: string;
+  variantId?: number;
+  variantName?: string;
+  quantity: number;
+  unitPrice: number | string;
+  subtotal: number | string;
+  taxRate: number | string;
+  taxAmount: number | string;
+  amount: number | string;
+};
+
+export type Quotation = {
+  id: number;
+  quotationNumber: string;
+  templateId?: number;
+  templateName?: string;
+  customerId: number;
+  customerName: string;
+  planId: number;
+  planName: string;
+  billingPeriod?: string;
+  issueDate: string;
+  validUntil: string;
+  startDate: string;
+  expiryDate: string;
+  paymentTerms: string;
+  state: QuotationState;
+  expired: boolean;
+  subtotal: number | string;
+  taxAmount: number | string;
+  total: number | string;
+  notes?: string;
+  convertedSubscriptionId?: number;
+  convertedSubscriptionNumber?: string;
+  confirmedAt?: string;
+  convertedAt?: string;
+  cancelledAt?: string;
+  createdBy: string;
+  lines: QuotationLine[];
   createdAt?: string;
   updatedAt?: string;
 };

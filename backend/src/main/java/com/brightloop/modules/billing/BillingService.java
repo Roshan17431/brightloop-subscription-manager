@@ -371,9 +371,10 @@ public class BillingService {
         invoices.findBySubscriptionIdAndBillingPeriodStart(s.id, periodStart);
     if (existingInvoice.isPresent()) {
       // Ensure schedule is advanced if somehow not yet advanced
+      LocalDate anchorDate = s.startDate.plusDays(s.totalPausedDays);
       s.lastBilledDate = periodStart;
       s.nextBillingDate =
-          Rules.advanceBillingDate(periodStart, plan.billingPeriod, s.startDate);
+          Rules.advanceBillingDate(periodStart, plan.billingPeriod, anchorDate);
       if (s.nextBillingDate.isAfter(s.expiryDate) && plan.automaticClosing) {
         s.state = SubscriptionState.CLOSED;
       }
@@ -406,8 +407,9 @@ public class BillingService {
             .map(DiscountService.AppliedDiscount::lineDiscountsBySubLineId)
             .orElse(Map.of());
 
+    LocalDate anchorDate = s.startDate.plusDays(s.totalPausedDays);
     LocalDate periodEnd =
-        Rules.billingPeriodEnd(periodStart, plan.billingPeriod, s.startDate, s.expiryDate);
+        Rules.billingPeriodEnd(periodStart, plan.billingPeriod, anchorDate, s.expiryDate);
 
     var invoice = new Invoice();
     invoice.invoiceNumber =
@@ -502,7 +504,7 @@ public class BillingService {
 
     s.lastBilledDate = periodStart;
     s.nextBillingDate =
-        Rules.advanceBillingDate(periodStart, plan.billingPeriod, s.startDate);
+        Rules.advanceBillingDate(periodStart, plan.billingPeriod, anchorDate);
     if (s.nextBillingDate.isAfter(s.expiryDate) && plan.automaticClosing) {
       var prev = s.state;
       s.state = SubscriptionState.CLOSED;

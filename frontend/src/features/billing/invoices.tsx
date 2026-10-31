@@ -9,6 +9,8 @@ import {
   Ban,
   Check,
   ChevronRight,
+  Clock,
+  CreditCard,
   Download,
   FileText,
   Mail,
@@ -19,8 +21,11 @@ import { api, errorMessage, queryString } from "@/lib/api";
 import { human, money } from "@/lib/utils";
 import {
   invoiceStates,
+  paymentMethods,
   type Invoice,
   type Page,
+  type Payment,
+  type PaymentMethod,
   type User,
 } from "@/lib/types";
 import {
@@ -28,6 +33,7 @@ import {
   DetailValue,
   Empty,
   ErrorState,
+  FormField,
   Heading,
   Loading,
   Pagination,
@@ -39,12 +45,21 @@ import { ConfirmDialog } from "@/components/ui/dialog";
 export function InvoiceList({ user }: { user: User }) {
   const [q, setQ] = useState("");
   const [state, setState] = useState("");
+  const [balanceFilter, setBalanceFilter] = useState("");
   const [page, setPage] = useState(0);
   const result = useQuery({
-    queryKey: ["invoices", { q, state, page }],
+    queryKey: ["invoices", { q, state, balanceFilter, page }],
     queryFn: ({ signal }) =>
       api<Page<Invoice>>(
-        `/invoices${queryString({ q, state, page, size: 10 })}`,
+        `/invoices${queryString({
+          q,
+          state: state || undefined,
+          outstanding: balanceFilter === "OUTSTANDING" ? true : undefined,
+          overdue: balanceFilter === "OVERDUE" ? true : undefined,
+          partiallyPaid: balanceFilter === "PARTIALLY_PAID" ? true : undefined,
+          page,
+          size: 10,
+        })}`,
         { signal },
       ),
   });
@@ -57,17 +72,25 @@ export function InvoiceList({ user }: { user: User }) {
         title="Invoices"
         description={
           user.role === "CUSTOMER"
-            ? "Review your subscription invoices, download PDFs, and print copies."
-            : "Invoices generated from recurring subscriptions, with snapshotted prices, discounts, and taxes."
+            ? "Review your subscription invoices, payment balances, download PDFs, and print copies."
+            : "Invoices generated from recurring subscriptions, with snapshotted prices, discounts, taxes, and payment reconciliation."
         }
         action={
           user.role !== "CUSTOMER" && (
-            <Button variant="outline" asChild>
-              <Link href="/billing">
-                <FileText />
-                Billing runs
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" asChild>
+                <Link href="/payments">
+                  <CreditCard />
+                  Payments
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/billing">
+                  <FileText />
+                  Billing runs
+                </Link>
+              </Button>
+            </div>
           )
         }
       />
@@ -82,8 +105,22 @@ export function InvoiceList({ user }: { user: User }) {
             placeholder="Search invoice, subscription, customer…"
           />
           <select
+            aria-label="Filter invoice balance"
+            className="input sm:ml-auto sm:!w-48"
+            value={balanceFilter}
+            onChange={(e) => {
+              setBalanceFilter(e.target.value);
+              setPage(0);
+            }}
+          >
+            <option value="">All balances</option>
+            <option value="OUTSTANDING">Outstanding balance</option>
+            <option value="OVERDUE">Overdue only</option>
+            <option value="PARTIALLY_PAID">Partially paid</option>
+          </select>
+          <select
             aria-label="Filter invoice state"
-            className="input sm:ml-auto sm:!w-44"
+            className="input sm:!w-44"
             value={state}
             onChange={(e) => {
               setState(e.target.value);
@@ -109,10 +146,12 @@ export function InvoiceList({ user }: { user: User }) {
         ) : !result.data.content.length ? (
           <Empty
             title={
-              q || state ? "No matching invoices" : "No invoices generated yet"
+              q || state || balanceFilter
+                ? "No matching invoices"
+                : "No invoices generated yet"
             }
             description={
-              q || state
+              q || state || balanceFilter
                 ? "Try another search or state filter."
                 : user.role === "CUSTOMER"
                   ? "Invoices will appear here when your active subscriptions are billed."
@@ -135,11 +174,11 @@ export function InvoiceList({ user }: { user: User }) {
                     <th>Invoice</th>
                     <th>Subscription</th>
                     {user.role !== "CUSTOMER" && <th>Customer</th>}
-                    <th>Billing period</th>
-                    <th>Issue date</th>
                     <th>Due date</th>
                     <th>State</th>
+                    <th>Payment status</th>
                     <th>Total</th>
+                    <th>Outstanding</th>
                     <th>Details</th>
                   </tr>
                 </thead>
@@ -162,15 +201,30 @@ export function InvoiceList({ user }: { user: User }) {
                       {user.role !== "CUSTOMER" && (
                         <td className="text-slate-500">{inv.customerName}</td>
                       )}
-                      <td className="text-xs text-slate-500">
-                        {inv.billingPeriodStart} → {inv.billingPeriodEnd}
+                      <td className="text-slate-500">
+                        <div>{inv.dueDate}</div>
+                        {inv.overdue && (
+                          <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600">
+                            <Clock className="size-3" />
+                            {inv.daysOverdue}d overdue
+                          </span>
+                        )}
                       </td>
-                      <td className="text-slate-500">{inv.issueDate}</td>
-                      <td className="text-slate-500">{inv.dueDate}</td>
                       <td>
                         <Badge value={inv.state} />
                       </td>
+                      <td>
+                        <Badge value={inv.paymentStatus || inv.state} />
+                      </td>
                       <td className="font-medium">{money(inv.total)}</td>
+                      <td className="font-medium">
+                        {money(
+                          inv.outstandingAmount ??
+                            (inv.state === "PAID" || inv.state === "CANCELLED"
+                              ? 0
+                              : inv.total),
+                        )}
+                      </td>
                       <td>
                         <Link
                           href={`/invoices/${inv.id}`}
@@ -199,11 +253,26 @@ export function InvoiceList({ user }: { user: User }) {
 
 export function InvoiceDetail({ id, user }: { id: string; user: User }) {
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [recordOpen, setRecordOpen] = useState(false);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState<PaymentMethod>("BANK_TRANSFER");
+  const [payDate, setPayDate] = useState(
+    () => new Date().toISOString().slice(0, 10),
+  );
+  const [payRef, setPayRef] = useState("");
+  const [payNote, setPayNote] = useState("");
   const [downloading, setDownloading] = useState(false);
+
   const client = useQueryClient();
   const result = useQuery({
     queryKey: ["invoices", id],
     queryFn: ({ signal }) => api<Invoice>(`/invoices/${id}`, { signal }),
+  });
+
+  const invoicePayments = useQuery({
+    queryKey: ["payments", "invoice", id],
+    queryFn: ({ signal }) =>
+      api<Payment[]>(`/invoices/${id}/payments`, { signal }),
   });
 
   const transition = useMutation({
@@ -216,6 +285,47 @@ export function InvoiceDetail({ id, user }: { id: string; user: User }) {
       client.invalidateQueries({ queryKey: ["invoices"] });
       setConfirmCancel(false);
       toast.success(`Invoice moved to ${human(updated.state)}.`);
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
+  const settleZero = useMutation({
+    mutationFn: () =>
+      api<Invoice>(`/invoices/${id}/settle-zero`, {
+        method: "POST",
+        body: {},
+      }),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["invoices"] });
+      toast.success("Zero-value invoice settled as Paid.");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
+  const recordPayment = useMutation({
+    mutationFn: () =>
+      api<Payment>(`/invoices/${id}/payments`, {
+        method: "POST",
+        body: {
+          invoiceId: Number(id),
+          method: payMethod,
+          amount: Number(payAmount).toFixed(2),
+          paymentDate: payDate,
+          paymentReference: payRef.trim() || undefined,
+          note: payNote.trim() || undefined,
+        },
+      }),
+    onSuccess: (saved) => {
+      client.invalidateQueries({ queryKey: ["invoices"] });
+      client.invalidateQueries({ queryKey: ["payments"] });
+      setRecordOpen(false);
+      setPayRef("");
+      setPayNote("");
+      toast.success(
+        saved.invoiceState === "PAID"
+          ? `Payment recorded. Invoice is now PAID!`
+          : `Payment of ${money(saved.amount)} recorded.`,
+      );
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
@@ -268,6 +378,14 @@ export function InvoiceDetail({ id, user }: { id: string; user: User }) {
   const flowIndex = flowStates.indexOf(
     inv.state as (typeof flowStates)[number],
   );
+  const amountPaid = Number(inv.amountPaid ?? 0);
+  const outstandingAmount = Number(
+    inv.outstandingAmount ??
+      (inv.state === "PAID" || inv.state === "CANCELLED"
+        ? 0
+        : Number(inv.total) - amountPaid),
+  );
+  const paymentStatus = inv.paymentStatus || inv.state;
 
   return (
     <>
@@ -307,7 +425,8 @@ export function InvoiceDetail({ id, user }: { id: string; user: User }) {
               </Button>
             )}
             {user.role !== "CUSTOMER" &&
-              (inv.state === "DRAFT" || inv.state === "CONFIRMED") && (
+              (inv.state === "DRAFT" ||
+                (inv.state === "CONFIRMED" && amountPaid === 0)) && (
                 <Button
                   variant="outline"
                   disabled={transition.isPending}
@@ -326,18 +445,70 @@ export function InvoiceDetail({ id, user }: { id: string; user: User }) {
                 <ArrowRight />
               </Button>
             )}
+            {user.role !== "CUSTOMER" &&
+              inv.state === "CONFIRMED" &&
+              Number(inv.total) === 0 && (
+                <Button
+                  disabled={settleZero.isPending}
+                  onClick={() => settleZero.mutate()}
+                >
+                  {settleZero.isPending ? "Settling…" : "Settle zero invoice"}
+                </Button>
+              )}
+            {user.role !== "CUSTOMER" &&
+              inv.state === "CONFIRMED" &&
+              outstandingAmount > 0 && (
+                <Button
+                  onClick={() => {
+                    setPayAmount(outstandingAmount.toFixed(2));
+                    setRecordOpen(true);
+                  }}
+                >
+                  <CreditCard />
+                  Record payment
+                </Button>
+              )}
           </div>
         }
       />
+
+      <div className="no-print mb-6 grid gap-4 sm:grid-cols-4">
+        <div className="card p-4">
+          <p className="text-xs text-slate-400">Invoice total</p>
+          <p className="mt-1 text-xl font-semibold">{money(inv.total)}</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-xs text-slate-400">Total paid</p>
+          <p className="mt-1 text-xl font-semibold text-emerald-600">
+            {money(amountPaid)}
+          </p>
+        </div>
+        <div className="card p-4">
+          <p className="text-xs text-slate-400">Outstanding balance</p>
+          <p className="mt-1 text-xl font-semibold text-slate-900">
+            {money(outstandingAmount)}
+          </p>
+        </div>
+        <div className="card p-4">
+          <p className="text-xs text-slate-400">Payment status</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Badge value={paymentStatus} />
+            {inv.overdue && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                <Clock className="size-3" />
+                {inv.daysOverdue}d overdue
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="no-print card mb-6 flex w-full min-w-0 max-w-full gap-1 overflow-x-auto p-5">
         {inv.state === "CANCELLED" ? (
           <div className="flex items-center gap-3 text-xs font-semibold text-rose-600">
             <Ban size={15} />
             This invoice was cancelled
-            {inv.cancelledAt
-              ? ` on ${inv.cancelledAt.slice(0, 10)}`
-              : ""}
-            .
+            {inv.cancelledAt ? ` on ${inv.cancelledAt.slice(0, 10)}` : ""}.
           </div>
         ) : (
           flowStates.map((st, i) => (
@@ -398,13 +569,21 @@ export function InvoiceDetail({ id, user }: { id: string; user: User }) {
               : "None"}
           </DetailValue>
           <DetailValue label="Last emailed">
-            {inv.sentAt ? inv.sentAt.replace("T", " ").slice(0, 19) : "Not sent"}
+            {inv.sentAt
+              ? inv.sentAt.replace("T", " ").slice(0, 19)
+              : "Not sent"}
           </DetailValue>
           <DetailValue label="Total due">{money(inv.total)}</DetailValue>
+          {inv.followupNotes && (
+            <DetailValue label="Overdue follow-up">
+              {inv.followupNotes}
+              {inv.followupBy ? ` (${inv.followupBy})` : ""}
+            </DetailValue>
+          )}
         </dl>
       </section>
 
-      <section className="card overflow-hidden">
+      <section className="card mb-6 overflow-hidden">
         <div className="border-b border-slate-100 p-5">
           <h2 className="font-semibold">Invoice lines</h2>
           <p className="mt-1 text-xs text-slate-400">
@@ -470,18 +649,109 @@ export function InvoiceDetail({ id, user }: { id: string; user: User }) {
               <span>Taxes</span>
               <span>{money(inv.taxAmount)}</span>
             </div>
-            <div className="flex justify-between border-t border-slate-200 pt-3 text-base font-semibold text-slate-900">
-              <span>Total due</span>
+            <div className="flex justify-between border-t border-slate-200 pt-2 font-medium text-slate-700">
+              <span>Invoice total</span>
               <span>{money(inv.total)}</span>
+            </div>
+            <div className="flex justify-between text-emerald-600">
+              <span>Amount paid</span>
+              <span>{money(amountPaid)}</span>
+            </div>
+            <div className="flex justify-between border-t border-slate-200 pt-3 text-base font-semibold text-slate-900">
+              <span>Outstanding balance</span>
+              <span>{money(outstandingAmount)}</span>
             </div>
           </div>
         </div>
       </section>
 
-      <p className="no-print mt-4 text-xs text-slate-400">
-        Invoices move from Draft to Confirmed. Marking an invoice as Paid
-        requires recorded payment evidence in Phase 3.
-      </p>
+      <section className="no-print card overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5">
+          <div>
+            <h2 className="font-semibold">Payment history</h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Recorded payments and reversals reconciled against this invoice.
+            </p>
+          </div>
+          {user.role !== "CUSTOMER" &&
+            inv.state === "CONFIRMED" &&
+            outstandingAmount > 0 && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setPayAmount(outstandingAmount.toFixed(2));
+                  setRecordOpen(true);
+                }}
+              >
+                <CreditCard />
+                Record payment
+              </Button>
+            )}
+        </div>
+        {invoicePayments.isPending ? (
+          <div className="p-5">
+            <Loading />
+          </div>
+        ) : invoicePayments.error ? (
+          <div className="p-5">
+            <ErrorState
+              error={invoicePayments.error}
+              retry={() => invoicePayments.refetch()}
+            />
+          </div>
+        ) : !invoicePayments.data?.length ? (
+          <Empty
+            title="No payments recorded for this invoice"
+            description={
+              inv.state === "DRAFT"
+                ? "Confirm this invoice first before recording customer payments."
+                : "Record a full or partial payment to reconcile the outstanding balance."
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Reference</th>
+                  <th>Method</th>
+                  <th>Date</th>
+                  <th>Recorded by</th>
+                  <th>Status</th>
+                  <th>Amount</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoicePayments.data.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <Link href={`/payments/${p.id}`}>
+                        {p.paymentReference}
+                      </Link>
+                    </td>
+                    <td className="text-slate-500">{human(p.method)}</td>
+                    <td className="text-slate-500">{p.paymentDate}</td>
+                    <td className="text-slate-500">{p.recordedBy}</td>
+                    <td>
+                      <Badge value={p.status} />
+                    </td>
+                    <td className="font-medium">{money(p.amount)}</td>
+                    <td>
+                      <Link
+                        href={`/payments/${p.id}`}
+                        aria-label={`View payment ${p.paymentReference}`}
+                      >
+                        <ArrowUpRight className="size-4 text-slate-400" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <ConfirmDialog
         open={confirmCancel}
@@ -491,7 +761,88 @@ export function InvoiceDetail({ id, user }: { id: string; user: User }) {
         onConfirm={() => transition.mutate("CANCELLED")}
       >
         Cancelling this invoice marks it as void. Cancelled invoices cannot be
-        confirmed or emailed.
+        confirmed, emailed, or paid.
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={recordOpen}
+        onOpenChange={setRecordOpen}
+        title={`Record payment for ${inv.invoiceNumber}`}
+        confirmLabel="Record payment"
+        pendingLabel="Recording…"
+        variant="default"
+        pending={recordPayment.isPending}
+        onConfirm={() => {
+          const val = Number(payAmount);
+          if (!val || val <= 0) {
+            toast.error("Enter a valid positive payment amount.");
+            return;
+          }
+          recordPayment.mutate();
+        }}
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-slate-500">
+            Outstanding balance:{" "}
+            <span className="font-semibold text-slate-800">
+              {money(outstandingAmount)}
+            </span>{" "}
+            (Invoice total: {money(inv.total)}).
+          </p>
+          <FormField label="Payment method">
+            <select
+              aria-label="Payment method"
+              className="input"
+              value={payMethod}
+              onChange={(e) => setPayMethod(e.target.value as PaymentMethod)}
+            >
+              {paymentMethods.map((m) => (
+                <option key={m} value={m}>
+                  {human(m)}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <FormField label="Amount">
+            <input
+              aria-label="Payment amount"
+              type="number"
+              step="0.01"
+              min="0.01"
+              max={outstandingAmount}
+              className="input"
+              value={payAmount}
+              onChange={(e) => setPayAmount(e.target.value)}
+            />
+          </FormField>
+          <FormField label="Payment date">
+            <input
+              aria-label="Payment date"
+              type="date"
+              className="input"
+              value={payDate}
+              onChange={(e) => setPayDate(e.target.value)}
+            />
+          </FormField>
+          <FormField label="Payment reference (optional)">
+            <input
+              aria-label="Payment reference"
+              className="input"
+              placeholder="UTR / UPI / Check reference…"
+              value={payRef}
+              onChange={(e) => setPayRef(e.target.value)}
+            />
+          </FormField>
+          <FormField label="Note (optional)">
+            <input
+              aria-label="Payment note"
+              className="input"
+              placeholder="Optional note…"
+              value={payNote}
+              onChange={(e) => setPayNote(e.target.value)}
+            />
+          </FormField>
+        </div>
       </ConfirmDialog>
     </>
   );

@@ -15,10 +15,14 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
+  Ban,
   Check,
   ChevronRight,
+  Pause,
   Pencil,
+  Play,
   Plus,
+  RefreshCw,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -26,6 +30,7 @@ import { api, errorMessage, queryString } from "@/lib/api";
 import { human, money, adjustment } from "@/lib/utils";
 import {
   states,
+  subscriptionFilterStates,
   type BillingRun,
   type Customer,
   type Invoice,
@@ -49,6 +54,7 @@ import {
   SearchField,
 } from "@/components/shared";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { subscriptionSchema } from "./schemas";
 export function SubscriptionList({ user }: { user: User }) {
   const [q, setQ] = useState("");
@@ -98,7 +104,7 @@ export function SubscriptionList({ user }: { user: User }) {
             }}
           >
             <option value="">All states</option>
-            {states.map((s) => (
+            {subscriptionFilterStates.map((s) => (
               <option key={s} value={s}>
                 {human(s)}
               </option>
@@ -186,6 +192,14 @@ export function SubscriptionList({ user }: { user: User }) {
 }
 export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
   const client = useQueryClient();
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [resumeOpen, setResumeOpen] = useState(false);
+  const [renewOpen, setRenewOpen] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [renewPeriods, setRenewPeriods] = useState(1);
+  const [renewExpiryDate, setRenewExpiryDate] = useState("");
+  const [closeReason, setCloseReason] = useState("");
+
   const result = useQuery({
     queryKey: ["subscriptions", id],
     queryFn: ({ signal }) =>
@@ -211,6 +225,67 @@ export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
+  const pauseMutation = useMutation({
+    mutationFn: () =>
+      api<Subscription>(`/subscriptions/${id}/pause`, {
+        method: "POST",
+        body: {},
+      }),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["subscriptions"] });
+      setPauseOpen(false);
+      toast.success("Subscription paused. Recurring billing is suspended.");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  const resumeMutation = useMutation({
+    mutationFn: () =>
+      api<Subscription>(`/subscriptions/${id}/resume`, {
+        method: "POST",
+        body: {},
+      }),
+    onSuccess: (updated) => {
+      client.invalidateQueries({ queryKey: ["subscriptions"] });
+      setResumeOpen(false);
+      toast.success(
+        `Subscription resumed. Next billing date: ${updated.nextBillingDate}.`,
+      );
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  const renewMutation = useMutation({
+    mutationFn: () =>
+      api<Subscription>(`/subscriptions/${id}/renew`, {
+        method: "POST",
+        body: {
+          newExpiryDate: renewExpiryDate || undefined,
+          periods: renewExpiryDate ? undefined : renewPeriods,
+        },
+      }),
+    onSuccess: (updated) => {
+      client.invalidateQueries({ queryKey: ["subscriptions"] });
+      setRenewOpen(false);
+      setRenewExpiryDate("");
+      toast.success(
+        `Subscription renewed through ${updated.expiryDate}.`,
+      );
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  const closeMutation = useMutation({
+    mutationFn: () =>
+      api<Subscription>(`/subscriptions/${id}/close`, {
+        method: "POST",
+        body: { reason: closeReason.trim() || undefined },
+      }),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["subscriptions"] });
+      setCloseOpen(false);
+      setCloseReason("");
+      toast.success("Subscription closed early.");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
   const billNow = useMutation({
     mutationFn: (billingDate: string) =>
       api<BillingRun>("/billing/run", {
@@ -233,7 +308,9 @@ export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
   if (result.error)
     return <ErrorState error={result.error} retry={() => result.refetch()} />;
   const s = result.data;
-  const index = states.indexOf(s.state);
+  const index = states.indexOf(
+    (s.state === "PAUSED" ? "ACTIVE" : s.state) as (typeof states)[number],
+  );
   return (
     <>
       <Link
@@ -270,17 +347,62 @@ export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
                 {billNow.isPending ? "Billing…" : "Generate due invoice"}
               </Button>
             )}
-            {user.role !== "CUSTOMER" && index < states.length - 1 && (
+            {user.role !== "CUSTOMER" && s.state === "ACTIVE" && (
               <Button
-                disabled={transition.isPending}
-                onClick={() => transition.mutate(states[index + 1])}
+                variant="outline"
+                disabled={pauseMutation.isPending}
+                onClick={() => setPauseOpen(true)}
               >
-                {transition.isPending
-                  ? "Updating…"
-                  : `Move to ${human(states[index + 1])}`}
-                <ArrowRight />
+                <Pause />
+                Pause
               </Button>
             )}
+            {user.role !== "CUSTOMER" && s.state === "PAUSED" && (
+              <Button
+                disabled={resumeMutation.isPending}
+                onClick={() => setResumeOpen(true)}
+              >
+                <Play />
+                Resume subscription
+              </Button>
+            )}
+            {user.role !== "CUSTOMER" &&
+              (s.state === "ACTIVE" || s.state === "CLOSED") && (
+                <Button
+                  variant="outline"
+                  disabled={renewMutation.isPending}
+                  onClick={() => setRenewOpen(true)}
+                >
+                  <RefreshCw />
+                  Renew
+                </Button>
+              )}
+            {user.role !== "CUSTOMER" &&
+              (s.state === "ACTIVE" ||
+                s.state === "PAUSED" ||
+                s.state === "CONFIRMED") && (
+                <Button
+                  variant="outline"
+                  disabled={closeMutation.isPending}
+                  onClick={() => setCloseOpen(true)}
+                >
+                  <Ban />
+                  Early close
+                </Button>
+              )}
+            {user.role !== "CUSTOMER" &&
+              s.state !== "PAUSED" &&
+              index < states.length - 1 && (
+                <Button
+                  disabled={transition.isPending}
+                  onClick={() => transition.mutate(states[index + 1])}
+                >
+                  {transition.isPending
+                    ? "Updating…"
+                    : `Move to ${human(states[index + 1])}`}
+                  <ArrowRight />
+                </Button>
+              )}
           </div>
         }
       />
@@ -295,7 +417,9 @@ export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
             <span
               className={`text-xs ${i === index ? "font-semibold text-violet-700" : "text-slate-500"}`}
             >
-              {human(state)}
+              {state === "ACTIVE" && s.state === "PAUSED"
+                ? "Active (Paused)"
+                : human(state)}
             </span>
             {i < states.length - 1 && (
               <ChevronRight className="mx-auto size-4 text-slate-300" />
@@ -304,8 +428,16 @@ export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
         ))}
       </div>
       <section className="card mb-6 p-6">
-        <div className="mb-7 flex items-center justify-between">
-          <h2 className="font-semibold">Subscription overview</h2>
+        <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Subscription overview</h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Plan policies: Pausing{" "}
+              {s.pausingAllowed ? "allowed" : "disabled"} · Renewal{" "}
+              {s.renewalAllowed ? "allowed" : "disabled"} · Early closing{" "}
+              {s.earlyClosingAllowed ? "allowed" : "disabled"}
+            </p>
+          </div>
           <Badge value={s.state} />
         </div>
         <dl className="grid gap-7 sm:grid-cols-3">
@@ -324,8 +456,155 @@ export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
             {s.lastBilledDate || "Not billed yet"}
           </DetailValue>
           <DetailValue label="Line total">{money(s.total)}</DetailValue>
+          <DetailValue label="Total paused days">
+            {s.totalPausedDays ? `${s.totalPausedDays} days` : "0 days"}
+          </DetailValue>
+          {s.pausedBy && (
+            <DetailValue label="Last paused">
+              {s.pausedDate} by {s.pausedBy}
+            </DetailValue>
+          )}
+          {s.resumedBy && (
+            <DetailValue label="Last resumed">
+              by {s.resumedBy}
+            </DetailValue>
+          )}
+          {Boolean(s.renewalCount) && (
+            <DetailValue label="Renewals">
+              {s.renewalCount} time{s.renewalCount === 1 ? "" : "s"}
+              {s.renewedBy ? ` (last by ${s.renewedBy})` : ""}
+            </DetailValue>
+          )}
+          {s.closedBy && (
+            <DetailValue label="Closed by">
+              {s.closedBy}
+              {s.closureReason ? ` · ${s.closureReason}` : ""}
+            </DetailValue>
+          )}
+          {s.quotationId && (
+            <DetailValue label="Source quotation">
+              <Link
+                href={`/quotations/${s.quotationId}`}
+                className="text-violet-600 underline"
+              >
+                Quotation #{s.quotationId}
+              </Link>
+            </DetailValue>
+          )}
         </dl>
       </section>
+
+      <ConfirmDialog
+        open={pauseOpen}
+        onOpenChange={setPauseOpen}
+        title={`Pause ${s.number}?`}
+        confirmLabel="Pause subscription"
+        pendingLabel="Pausing…"
+        variant="default"
+        pending={pauseMutation.isPending}
+        onConfirm={() => pauseMutation.mutate()}
+      >
+        Pausing suspends recurring billing for this subscription until it is
+        resumed.{!s.pausingAllowed && (
+          <span className="mt-2 block font-semibold text-rose-600">
+            Note: Plan "{s.planName}" does not allow pausing.
+          </span>
+        )}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={resumeOpen}
+        onOpenChange={setResumeOpen}
+        title={`Resume ${s.number}?`}
+        confirmLabel="Resume subscription"
+        pendingLabel="Resuming…"
+        variant="default"
+        pending={resumeMutation.isPending}
+        onConfirm={() => resumeMutation.mutate()}
+      >
+        Resuming restores this subscription to ACTIVE and shifts its next
+        billing and expiry dates forward by any paused days so the customer is
+        not charged for paused time.
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={renewOpen}
+        onOpenChange={setRenewOpen}
+        title={`Renew ${s.number}`}
+        confirmLabel="Renew subscription"
+        pendingLabel="Renewing…"
+        variant="default"
+        pending={renewMutation.isPending}
+        onConfirm={() => renewMutation.mutate()}
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-slate-500">
+            Current expiry date:{" "}
+            <span className="font-semibold text-slate-800">
+              {s.expiryDate}
+            </span>
+            . Prior invoices and billing history are preserved.
+          </p>
+          {!s.renewalAllowed && (
+            <p className="text-xs font-semibold text-rose-600">
+              Note: Plan "{s.planName}" does not allow renewal.
+            </p>
+          )}
+          <FormField
+            label="Extend by billing cycles"
+            hint="Used when a specific new expiry date is not entered."
+          >
+            <input
+              type="number"
+              min="1"
+              max="60"
+              className="input"
+              value={renewPeriods}
+              onChange={(e) => setRenewPeriods(Number(e.target.value) || 1)}
+            />
+          </FormField>
+          <FormField label="Or choose explicit new expiry date (optional)">
+            <input
+              type="date"
+              className="input"
+              value={renewExpiryDate}
+              onChange={(e) => setRenewExpiryDate(e.target.value)}
+            />
+          </FormField>
+        </div>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={closeOpen}
+        onOpenChange={setCloseOpen}
+        title={`Close ${s.number} early?`}
+        confirmLabel="Close subscription"
+        pendingLabel="Closing…"
+        variant="destructive"
+        pending={closeMutation.isPending}
+        onConfirm={() => closeMutation.mutate()}
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-slate-500">
+            Early closing stops all future recurring billing while preserving
+            historical invoices.
+          </p>
+          {!s.earlyClosingAllowed && (
+            <p className="text-xs font-semibold text-rose-600">
+              Note: Plan "{s.planName}" does not allow early closing before{" "}
+              {s.expiryDate}.
+            </p>
+          )}
+          <FormField label="Closure reason">
+            <input
+              className="input"
+              placeholder="Customer requested early termination…"
+              value={closeReason}
+              onChange={(e) => setCloseReason(e.target.value)}
+            />
+          </FormField>
+        </div>
+      </ConfirmDialog>
       <section className="card overflow-hidden">
         <div className="border-b border-slate-100 p-5">
           <h2 className="font-semibold">Subscription lines</h2>

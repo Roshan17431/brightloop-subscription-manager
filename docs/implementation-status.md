@@ -43,14 +43,49 @@ Implemented and verified locally against all 20 Phase 1 acceptance criteria.
   - Backend `mvn verify`: 31 tests passed, 0 failures, 0 errors, 0 skips against PostgreSQL 17.11 (including `Phase2BillingIntegrationTest` covering end-of-month/cycle advancement, taxes/discounts, idempotency, 4-thread concurrent billing and single-use discount locking, mid-transaction fault rollback and retry safety, expiry auto-closing, authorization, PDF export, and SMTP email delivery).
   - Frontend `npm run typecheck`, `npm test` (6 files / 37 tests), and `npm run build`: all passed.
 - Pending / Known boundaries:
-  - Payment recording, payment reconciliation, and transitioning confirmed invoices to `PAID` with payment records belong to Phase 3.
+  - Phase 2 billing/invoicing is integrated with Phase 3 payment recording and reconciliation.
 - Next: Phase 3 payments, payment reconciliation, overdue tracking, and full lifecycle automation.
 
-## 3. Payments & Subscription Lifecycle — Not started
-- Implemented/files/tests: none for payments; Phase 1 includes core sequential subscription states only.
-- Pending: payments, reconciliation, overdue tracking and full pause/renewal/closing automation.
-- Known issues: no financial transactions or recurring processing yet.
-- Next: implement against transactional invoices.
+## 3. Payments, Subscription Lifecycle & Quotations — Completed
+- Implemented:
+  - Payment Management Module (`com.brightloop.modules.payment`):
+    - Record full, partial, and multiple payments (`BANK_TRANSFER`, `CASH`, `UPI`, `CARD`, `OTHER`) against confirmed invoices (`POST /api/v1/payments`, `POST /api/v1/invoices/{invoiceId}/payments`).
+    - Automatic invoice-payment reconciliation: tracks `amountPaid` and `outstandingAmount` with `BigDecimal(19,2)` precision, derives `paymentStatus` (`UNPAID`, `PARTIALLY_PAID`, `PAID`, `CANCELLED`) and `partiallyPaid` indicator without breaking `InvoiceState` (`DRAFT`, `CONFIRMED`, `PAID`, `CANCELLED`), and automatically transitions `CONFIRMED` invoices to `PAID` with recorded `paymentReference` and `paidAt` when reconciled payments equal `total`.
+    - Financial safety & concurrency: `PESSIMISTIC_WRITE` row-level locking on invoice during payment recording and reversal, unique `payment_reference` and `idempotency_key` constraints, duplicate payment reference rejection, overpayment prevention, zero/negative amount rejection, draft/cancelled invoice payment prevention, safe zero-value invoice settlement (`POST /api/v1/invoices/{id}/settle-zero`), and non-destructive payment reversal (`POST /api/v1/payments/{id}/reverse`) that preserves audit history and reverts `PAID` invoices to `CONFIRMED`.
+  - Outstanding & Overdue Invoices:
+    - Real-time calculation of `amountPaid`, `outstandingAmount`, `overdue` indicator, and `daysOverdue` (0 for `PAID`/`CANCELLED` invoices; calculated from remaining balance and `dueDate` for unpaid/partially paid `CONFIRMED` invoices).
+    - Filtering by `outstanding=true`, `overdue=true`, and `partiallyPaid=true` (`GET /api/v1/invoices`), plus overdue follow-up logging (`POST /api/v1/invoices/{id}/follow-up`).
+  - Subscription Lifecycle Completion (`com.brightloop.modules.subscription`):
+    - Pause (`POST /api/v1/subscriptions/{id}/pause`): enforces `plan.pausingAllowed`, transitions `ACTIVE -> PAUSED`, records `pausedAt`, `pausedBy`, `pausedDate`, prevents repeated pauses, and excludes paused subscriptions from recurring billing.
+    - Resume (`POST /api/v1/subscriptions/{id}/resume`): restores `PAUSED -> ACTIVE`, shifts `nextBillingDate` and `expiryDate` forward by the paused duration (`totalPausedDays`), preserves billing schedule date-anchor behavior, and avoids retroactive duplicate billing.
+    - Renewal (`POST /api/v1/subscriptions/{id}/renew`): enforces `plan.renewalAllowed`, advances `expiryDate` by explicit date or billing cycles, preserves prior invoice/billing history, and prevents duplicate renewal requests via `Idempotency-Key` / `lastRenewalKey`.
+    - Early Closing (`POST /api/v1/subscriptions/{id}/close`, `POST /api/v1/subscriptions/{id}/early-close`): enforces `plan.earlyClosingAllowed`, transitions to `CLOSED`, records `closedAt`, `closedBy`, and `closureReason`, prevents future billing, and preserves historical invoices.
+  - Quotation Templates & Quotations Module (`com.brightloop.modules.quotation`):
+    - Reusable quotation templates (`GET/POST /api/v1/quotation-templates`, `GET/PUT /api/v1/quotation-templates/{id}`) with plan association, validity duration in days, payment terms, default quantities, and default unit prices.
+    - Quotation generation (`POST /api/v1/quotation-templates/{id}/generate`, `POST /api/v1/quotations`), expiry validation (`validUntil`), confirmation (`POST /api/v1/quotations/{id}/confirm`), cancellation (`POST /api/v1/quotations/{id}/cancel`), and transactional conversion into an active subscription (`POST /api/v1/quotations/{id}/convert`) preserving snapshotted quotation unit prices and preventing duplicate conversions (`UNIQUE (converted_subscription_id)`).
+  - Frontend Workspace Screens:
+    - Payments list, filters, outstanding/overdue summary cards, overdue follow-up dialog, Record Payment screen, and Payment Detail with reversal (`frontend/src/features/payments/payments.tsx`).
+    - Invoice list balance filters and Invoice Detail payment summary cards, inline Record Payment dialog, and Payment History table (`frontend/src/features/billing/invoices.tsx`).
+    - Subscription Detail lifecycle controls (Pause, Resume, Renew, Early close) with confirmation dialogs and audit metadata (`frontend/src/features/subscriptions/subscriptions.tsx`).
+    - Quotation Templates & Customer Quotations list, Template Editor, Template Detail with Generate Quotation dialog, and Quotation Detail with Confirm and Convert to Subscription actions (`frontend/src/features/quotations/quotations.tsx`).
+- Files changed:
+  - `backend/src/main/resources/db/migration/V5__payments_quotations_lifecycle.sql`
+  - `backend/src/main/java/com/brightloop/modules/payment/*`
+  - `backend/src/main/java/com/brightloop/modules/quotation/*`
+  - `backend/src/main/java/com/brightloop/modules/invoice/{Invoice,InvoiceDtos,InvoiceRepository,InvoiceService,InvoiceController,InvoicePdfGenerator}.java`
+  - `backend/src/main/java/com/brightloop/modules/subscription/{SubscriptionState,Subscription,SubscriptionDtos,SubscriptionService,SubscriptionController}.java`
+  - `backend/src/main/java/com/brightloop/modules/billing/BillingService.java`, `config/SecurityConfig.java`
+  - `backend/src/test/java/com/brightloop/integration/Phase3PaymentsLifecycleQuotationsIntegrationTest.java`
+  - `frontend/src/features/payments/{payments.tsx,payments.test.tsx}`
+  - `frontend/src/features/quotations/quotations.tsx`
+  - `frontend/src/features/billing/{invoices.tsx,billing.test.tsx}`, `frontend/src/features/subscriptions/subscriptions.tsx`
+  - `frontend/src/lib/{types.ts,api.ts}`, `frontend/src/components/{shell.tsx,shared.tsx,ui/dialog.tsx}`, `frontend/src/app/[[...path]]/page.tsx`
+- Tests executed:
+  - Backend `mvn verify`: 37 tests passed, 0 failures, 0 errors, 0 skips against PostgreSQL 17.11 (including `Phase3PaymentsLifecycleQuotationsIntegrationTest` covering partial/multiple payments, reconciliation, idempotency, duplicate reference rejection, overpayment rejection, reversal integrity, 4-thread concurrent payment serialization, overdue balance & follow-up tracking, pause/resume/renew/early-close lifecycle rules, quotation template generation/expiry/conversion snapshot preservation, and the 13-step end-to-end HTTP acceptance workflow with RBAC & customer isolation).
+  - Frontend `npm run typecheck`, `npm test` (7 files / 41 tests), and `npm run build`: all passed.
+- Known issues / boundaries:
+  - Recorded payments represent ledger/operational reconciliation (not external live payment gateway webhooks). Advanced Phase 4 revenue analytics remain excluded by design.
+- Next: Phase 4 financial dashboards, revenue reporting, and analytics.
 
 ## 4. Dashboards & Customer Portal — Not started (core shell included in Phase 1)
 - Implemented/files/tests: Phase 1 provides only operational counts and owned subscription/profile screens when verified.

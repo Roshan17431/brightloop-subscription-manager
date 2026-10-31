@@ -45,4 +45,33 @@ public class SubscriptionController {
       @PathVariable Long id, @Valid @RequestBody SubscriptionDtos.Transition input) {
     return ApiResponse.ok(service.transition(id, input.state()));
   }
+
+  @PostMapping("/{id}/pause")
+  public ResponseEntity<?> pause(
+      @PathVariable Long id,
+      @Valid @RequestBody(required = false) SubscriptionDtos.PauseInput input) {
+    return ApiResponse.ok(service.pause(id, input));
+  }
+
+  @PostMapping("/{id}/resume")
+  public ResponseEntity<?> resume(
+      @PathVariable Long id,
+      @Valid @RequestBody(required = false) SubscriptionDtos.ResumeInput input) {
+    return ApiResponse.ok(service.resume(id, input));
+  }
+
+  @PostMapping("/{id}/renew")
+  public ResponseEntity<?> renew(
+      @PathVariable Long id,
+      @Valid @RequestBody(required = false) SubscriptionDtos.RenewInput input,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+    return ApiResponse.ok(service.renew(id, input, idempotencyKey));
+  }
+
+  @PostMapping({"/{id}/close", "/{id}/early-close"})
+  public ResponseEntity<?> close(
+      @PathVariable Long id,
+      @Valid @RequestBody(required = false) SubscriptionDtos.CloseInput input) {
+    return ApiResponse.ok(service.closeEarly(id, input));
+  }
 }

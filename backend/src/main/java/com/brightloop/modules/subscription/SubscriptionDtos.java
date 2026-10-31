@@ -31,6 +31,17 @@ public final class SubscriptionDtos {
 
   public record Transition(@NotNull SubscriptionState state) {}
 
+  public record PauseInput(LocalDate pauseDate, @Size(max = 500) String reason) {}
+
+  public record ResumeInput(LocalDate resumeDate) {}
+
+  public record RenewInput(
+      LocalDate newExpiryDate,
+      @Min(1) @Max(120) Integer periods,
+      @Size(max = 120) String idempotencyKey) {}
+
+  public record CloseInput(@Size(max = 500) String reason, LocalDate closeDate) {}
+
   public record LineView(
       Long id,
       Long productId,
@@ -50,6 +61,10 @@ public final class SubscriptionDtos {
       Long planId,
       String planName,
       String billingPeriod,
+      boolean pausingAllowed,
+      boolean renewalAllowed,
+      boolean earlyClosingAllowed,
+      boolean automaticClosing,
       LocalDate startDate,
       LocalDate expiryDate,
       LocalDate nextBillingDate,
@@ -57,6 +72,22 @@ public final class SubscriptionDtos {
       String paymentTerms,
       SubscriptionState state,
       @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal total,
+      Instant pausedAt,
+      String pausedBy,
+      LocalDate pausedDate,
+      Instant resumedAt,
+      String resumedBy,
+      int totalPausedDays,
+      Instant closedAt,
+      String closedBy,
+      String closureReason,
+      Instant renewedAt,
+      String renewedBy,
+      int renewalCount,
+      Long quotationTemplateId,
+      Long quotationId,
+      LocalDate quotationValidUntil,
+      Instant convertedFromQuotationAt,
       List<LineView> lines,
       Instant createdAt,
       Instant updatedAt) {}
@@ -66,14 +97,23 @@ public final class SubscriptionDtos {
         s.plan == null
             ? null
             : org.hibernate.Hibernate.unproxy(s.plan, com.brightloop.modules.plan.Plan.class);
+    var customer =
+        s.customer == null
+            ? null
+            : org.hibernate.Hibernate.unproxy(
+                s.customer, com.brightloop.modules.customer.Customer.class);
     return new View(
         s.id,
         s.number,
         s.customer.getId(),
-        s.customer.getName(),
+        customer != null ? customer.name : s.customer.getName(),
         s.plan.getId(),
         s.planName,
         plan != null && plan.billingPeriod != null ? plan.billingPeriod.name() : null,
+        plan != null && plan.pausingAllowed,
+        plan != null && plan.renewalAllowed,
+        plan != null && plan.earlyClosingAllowed,
+        plan != null && plan.automaticClosing,
         s.startDate,
         s.expiryDate,
         s.nextBillingDate,
@@ -81,6 +121,22 @@ public final class SubscriptionDtos {
         s.paymentTerms,
         s.state,
         s.total,
+        s.pausedAt,
+        s.pausedBy,
+        s.pausedDate,
+        s.resumedAt,
+        s.resumedBy,
+        s.totalPausedDays,
+        s.closedAt,
+        s.closedBy,
+        s.closureReason,
+        s.renewedAt,
+        s.renewedBy,
+        s.renewalCount,
+        s.quotationTemplateId,
+        s.quotationId,
+        s.quotationValidUntil,
+        s.convertedFromQuotationAt,
         s.lines.stream()
             .map(
                 l ->

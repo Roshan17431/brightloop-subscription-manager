@@ -5,5 +5,6 @@ public enum SubscriptionState {
   QUOTATION,
   CONFIRMED,
   ACTIVE,
+  PAUSED,
   CLOSED
 }

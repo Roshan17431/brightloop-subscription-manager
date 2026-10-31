@@ -88,45 +88,53 @@ describe("Phase 2 billing, tax, and discount schemas", () => {
 
 describe("Invoice detail and Billing execution components", () => {
   it("renders invoice financial breakdown and hides manager actions for customer role", async () => {
-    request.mockResolvedValue({
-      id: 42,
-      invoiceNumber: "INV-20261031-ABCD1234",
-      subscriptionId: 7,
-      subscriptionNumber: "BL-SUB-7",
-      customerId: 3,
-      customerName: "Acme Corp",
-      customerEmail: "billing@acme.test",
-      planId: 1,
-      planName: "Enterprise Monthly",
-      billingPeriod: "MONTHLY",
-      billingPeriodStart: "2026-10-01",
-      billingPeriodEnd: "2026-10-31",
-      issueDate: "2026-10-31",
-      dueDate: "2026-11-30",
-      paymentTerms: "Net 30",
-      state: "DRAFT",
-      subtotal: "3120.00",
-      discountAmount: "312.00",
-      discountName: "Volume 10%",
-      taxAmount: "505.44",
-      total: "3313.44",
-      idempotencyKey: "SUB-7-PERIOD-2026-10-01",
-      lines: [
-        {
-          id: 1,
-          productId: 1,
-          productName: "Brightloop Suite",
-          variantName: "Odoo",
-          quantity: 2,
-          unitPrice: "1560.00",
-          subtotal: "3120.00",
-          discountAmount: "312.00",
-          taxRate: "18.00",
-          taxRuleName: "GST 18%",
-          taxAmount: "505.44",
-          amount: "3313.44",
-        },
-      ],
+    request.mockImplementation((path: string) => {
+      if (path.endsWith("/payments")) {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve({
+        id: 42,
+        invoiceNumber: "INV-20261031-ABCD1234",
+        subscriptionId: 7,
+        subscriptionNumber: "BL-SUB-7",
+        customerId: 3,
+        customerName: "Acme Corp",
+        customerEmail: "billing@acme.test",
+        planId: 1,
+        planName: "Enterprise Monthly",
+        billingPeriod: "MONTHLY",
+        billingPeriodStart: "2026-10-01",
+        billingPeriodEnd: "2026-10-31",
+        issueDate: "2026-10-31",
+        dueDate: "2026-11-30",
+        paymentTerms: "Net 30",
+        state: "DRAFT",
+        subtotal: "3120.00",
+        discountAmount: "312.00",
+        discountName: "Volume 10%",
+        taxAmount: "505.44",
+        total: "3313.44",
+        amountPaid: "0.00",
+        outstandingAmount: "3313.44",
+        paymentStatus: "UNPAID",
+        idempotencyKey: "SUB-7-PERIOD-2026-10-01",
+        lines: [
+          {
+            id: 1,
+            productId: 1,
+            productName: "Brightloop Suite",
+            variantName: "Odoo",
+            quantity: 2,
+            unitPrice: "1560.00",
+            subtotal: "3120.00",
+            discountAmount: "312.00",
+            taxRate: "18.00",
+            taxRuleName: "GST 18%",
+            taxAmount: "505.44",
+            amount: "3313.44",
+          },
+        ],
+      });
     });
 
     render(

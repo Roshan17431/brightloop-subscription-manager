@@ -2,6 +2,7 @@ package com.brightloop.modules.invoice;
 
 import com.brightloop.response.ApiResponse;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,10 +24,24 @@ public class InvoiceController {
       @RequestParam(required = false) InvoiceState status,
       @RequestParam(required = false) Long subscriptionId,
       @RequestParam(required = false) Long customerId,
+      @RequestParam(required = false) Boolean outstanding,
+      @RequestParam(required = false) Boolean overdue,
+      @RequestParam(required = false) Boolean partiallyPaid,
+      @RequestParam(required = false) LocalDate asOfDate,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size) {
     return ApiResponse.ok(
-        service.list(q, state != null ? state : status, subscriptionId, customerId, page, size));
+        service.list(
+            q,
+            state != null ? state : status,
+            subscriptionId,
+            customerId,
+            outstanding,
+            overdue,
+            partiallyPaid,
+            asOfDate,
+            page,
+            size));
   }
 
   @GetMapping("/{id}")
@@ -48,6 +63,17 @@ public class InvoiceController {
   @PostMapping("/{id}/cancel")
   public ResponseEntity<?> cancel(@PathVariable Long id) {
     return ApiResponse.ok(service.transition(id, InvoiceState.CANCELLED));
+  }
+
+  @PostMapping("/{id}/settle-zero")
+  public ResponseEntity<?> settleZero(@PathVariable Long id) {
+    return ApiResponse.ok(service.settleZeroInvoice(id));
+  }
+
+  @PostMapping("/{id}/follow-up")
+  public ResponseEntity<?> followUp(
+      @PathVariable Long id, @Valid @RequestBody InvoiceDtos.FollowUpInput input) {
+    return ApiResponse.ok(service.recordFollowUp(id, input));
   }
 
   @PostMapping("/{id}/send")
