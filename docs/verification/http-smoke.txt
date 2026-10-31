@@ -1,0 +1,6 @@
+PASS health, response envelopes, CSRF, registration and authenticated sessions
+PASS customer persistence/isolation, staff creation and admin-only role management
+PASS products/variants, catalog permissions, money validation and associated plans
+PASS draft editing, calculated snapshots, ownership, sequential lifecycle and deletion constraints
+PASS SMTP reset link delivery, password replacement, single-use token and logout
+PASS 760 assertions; retained fixture suffix: d727e0773c72; subscription ID: 6

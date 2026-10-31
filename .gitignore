@@ -1,0 +1,17 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+target/
+*.log
+.idea/
+.vscode/
+*.iml
+infrastructure/.data/
+__pycache__/
+*.py[cod]

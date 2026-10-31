@@ -1,0 +1,8 @@
+Apache Maven 3.10.0 (c43a36b8d67be7e0805a411bc0898af1a51f5472)
+Maven home: /opt/homebrew/Cellar/maven/3.10.0/libexec
+Java version: 21.0.13.0.3, vendor: Homebrew, runtime: /opt/homebrew/Cellar/openjdk@21/21.0.13.0.3/libexec/openjdk.jdk/Contents/Home
+Default locale: en_US, platform encoding: UTF-8, time zone: Asia/Kolkata
+OS name: "mac os x", version: "27.0", arch: "aarch64", family: "mac"
+v22.16.0
+10.9.2
+PostgreSQL 17.11 (Homebrew) on aarch64-apple-darwin27.0.0, compiled by Apple clang version 21.0.0 (clang-2100.3.34.2), 64-bit

@@ -1,0 +1,131 @@
+@import "tailwindcss";
+:root {
+  --background: #f8f9fc;
+  --foreground: #1e293b;
+  --primary: #7c3aed;
+  --radius: 0.75rem;
+}
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --font-sans: Arial, Helvetica, sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  font-size: 14px;
+}
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+.input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #334155;
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.input:focus {
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 3px #ede9fe;
+}
+.input::placeholder {
+  color: #94a3b8;
+}
+.input:disabled {
+  background: #f8fafc;
+  opacity: 0.7;
+}
+textarea.input {
+  min-height: 100px;
+  resize: vertical;
+}
+.card {
+  min-width: 0;
+  border: 1px solid #e5e9f0;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px #0f172a03;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-green {
+  background: #ecfdf5;
+  color: #0d9473;
+}
+.badge-gray {
+  background: #f1f5f9;
+  color: #64748b;
+}
+.badge-violet {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  white-space: nowrap;
+}
+.table th {
+  background: #fafbfe;
+  padding: 14px 20px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  border-bottom: 1px solid #edf0f5;
+}
+.table td {
+  padding: 18px 20px;
+  font-size: 13px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.table tbody tr:hover {
+  background: #fcfcff;
+}
+.table a {
+  color: #334155;
+  font-weight: 600;
+}
+.table a:hover {
+  color: #7c3aed;
+}
+::selection {
+  background: #ddd6fe;
+}
