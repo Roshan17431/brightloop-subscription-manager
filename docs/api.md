@@ -1,4 +1,4 @@
-# Brightloop Phase 1 API
+# Brightloop REST API Reference (`/api/v1`)
 
 The backend serves `/api/v1`. The Next.js application proxies that path to the backend so browser requests use the same origin. All application endpoints exchange JSON. IDs are numbers, dates use `YYYY-MM-DD`, timestamps are ISO 8601, and all monetary DTO values are exact decimal strings. Clients must preserve those strings through display rather than converting them to JavaScript Number. Monetary input fields accept decimal JSON values. Customer catalog responses redact internal cost prices.
 
@@ -84,11 +84,11 @@ Plan payload:
 }
 ```
 
-Billing periods are `DAILY`, `WEEKLY`, `MONTHLY` and `YEARLY`. Dates must be ordered and minimum quantity must be positive. `productIds` stores one or more plan/product associations. Plan price is definition metadata; it does not run billing or replace subscription line pricing. Capability flags are stored configuration for future lifecycle features, not automated invoicing or renewal behavior.
+Billing periods are `DAILY`, `WEEKLY`, `MONTHLY` and `YEARLY`. Dates must be ordered and minimum quantity must be positive. `productIds` stores one or more plan/product associations. Plan `price` is catalog display metadata (invoice totals derive from subscription line unit prices, discounts, and taxes). Plan policy flags (`automaticClosing`, `earlyClosingAllowed`, `pausingAllowed`, `renewalAllowed`) are enforced by the recurring billing engine and subscription lifecycle endpoints (`/pause`, `/resume`, `/renew`, `/close`).
 
 ## Subscriptions
 
-Staff and admins can manage subscriptions. Customers can create and edit their own drafts and read only their own subscriptions. Only staff and admins may transition state.
+Staff and admins can manage all subscriptions. Customers can create and edit their own drafts, read only their own subscriptions, and invoke self-service lifecycle actions (`/pause`, `/resume`, `/renew`, `/close`) on their own subscriptions when permitted by the plan's policy flags. Only staff and admins may execute sequential stage transitions (`POST /subscriptions/{id}/transition`).
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -111,7 +111,7 @@ Draft payload:
 
 For a customer session, `customerId` can be omitted to use its own linked customer; specifying another customer is forbidden. The server validates customer, plan, product and variant relationships, plan availability, date order, minimum total quantity across lines, positive quantities, and financial precision. `variantId` is optional.
 
-The server calculates and snapshots each line's `unitPrice` from product sales price plus variant adjustment. `amount` includes quantity and the explicit percentage `taxRate`; `total` sums line amounts. For example, `(100.00 + 5.60) × 2 × 1.10 = 232.32`. Later catalog changes do not rewrite existing snapshots. Clients cannot choose the unit price. Tax snapshots are not a tax rules engine.
+The server calculates and snapshots each line's `unitPrice` from product sales price plus variant adjustment. `amount` includes quantity and the explicit percentage `taxRate`; `total` sums line amounts. For example, `(100.00 + 5.60) × 2 × 1.10 = 232.32`. Later catalog changes do not rewrite existing snapshots. Clients cannot choose the unit price. During recurring billing (Phase 2), the billing engine resolves active admin-configured tax rules (product-specific → product-type → default, falling back to the subscription line `taxRate` snapshot) and eligible discount rules.
 
 Responses contain `id`, unique `number`, customer and plan IDs/names, dates, payment terms, `state`, `total`, and `lines`. Lines include product/variant identity and names, quantity, unit price, tax rate and calculated amount.
 
@@ -130,7 +130,7 @@ The strict lifecycle is `DRAFT → QUOTATION → CONFIRMED → ACTIVE → CLOSED
 | GET | `/billing/runs/{id}` | Staff/Admin billing run detail and per-subscription items |
 | POST | `/billing/run` (or `/billing/runs`) | Admin-only trigger recurring billing (`{billingDate, idempotencyKey, subscriptionId}`) |
 | POST | `/billing/runs/{id}/retry` | Admin-only retry failed items from a billing run |
-| GET | `/invoices` | Paginated invoice list (`q`, `state`, `subscriptionId`, `customerId`); customer-isolated |
+| GET | `/invoices` | Paginated invoice list (`q`, `state`, `subscriptionId`, `customerId`, `outstanding`, `overdue`, `partiallyPaid`, `asOfDate`); customer-isolated |
 | GET | `/invoices/{id}` | Invoice detail with historical pricing, discount, and tax snapshots |
 | GET | `/invoices/{id}/pdf` | Download binary `application/pdf` invoice document |
 | POST | `/invoices/{id}/transition` | Staff/Admin transition (`CONFIRMED`, `CANCELLED`; `PAID` requires Phase 3 payment evidence) |
@@ -150,10 +150,10 @@ The strict lifecycle is `DRAFT → QUOTATION → CONFIRMED → ACTIVE → CLOSED
 | GET | `/invoices/{invoiceId}/payments` | Payment history for an invoice; customer-isolated |
 | POST | `/invoices/{invoiceId}/payments` | Staff/Admin record payment for a specific invoice |
 | POST | `/payments/{id}/reverse` | Staff/Admin reverse a recorded payment (`{reason, reversalReference}`) and reconcile invoice |
-| POST | `/subscriptions/{id}/pause` | Staff/Admin pause an `ACTIVE` subscription (`{pauseDate, reason}`); requires `plan.pausingAllowed` |
-| POST | `/subscriptions/{id}/resume` | Staff/Admin resume a `PAUSED` subscription (`{resumeDate}`) and shift billing/expiry dates |
-| POST | `/subscriptions/{id}/renew` | Staff/Admin renew an `ACTIVE` or `CLOSED` subscription (`{newExpiryDate, periods, idempotencyKey}`); requires `plan.renewalAllowed` |
-| POST | `/subscriptions/{id}/close` (or `/early-close`) | Staff/Admin early-close subscription (`{reason, closeDate}`); requires `plan.earlyClosingAllowed` |
+| POST | `/subscriptions/{id}/pause` | Staff/Admin or owning Customer pause an `ACTIVE` subscription (`{pauseDate, reason}`); requires `plan.pausingAllowed` |
+| POST | `/subscriptions/{id}/resume` | Staff/Admin or owning Customer resume a `PAUSED` subscription (`{resumeDate}`) and shift billing/expiry dates |
+| POST | `/subscriptions/{id}/renew` | Staff/Admin or owning Customer renew an `ACTIVE` or `CLOSED` subscription (`{newExpiryDate, periods, idempotencyKey}`); requires `plan.renewalAllowed` |
+| POST | `/subscriptions/{id}/close` (or `/early-close`) | Staff/Admin or owning Customer early-close subscription (`{reason, closeDate}`); requires `plan.earlyClosingAllowed` |
 | GET, POST | `/quotation-templates` | Staff/Admin list or create reusable quotation templates |
 | GET, PUT | `/quotation-templates/{id}` | Staff/Admin read or update quotation template |
 | POST | `/quotation-templates/{id}/generate` | Staff/Admin generate customer quotation from template (`{customerId, issueDate, validUntil, startDate, expiryDate, paymentTerms, notes}`) |

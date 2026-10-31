@@ -178,11 +178,13 @@ Implemented and verified locally against all 20 Phase 1 acceptance criteria.
   - Local verification is complete on branch `phase-5`; remote GitHub Actions execution will run when pushed. Production cloud deployment belongs to Phase 6.
 - Next: Phase 6 deployment & submission (only upon explicit user instruction).
 
-## 6. Deployment & Submission — Not started
-- Implemented/files/tests: local developer infrastructure only.
-- Pending: production environment, delivery pipeline, domain/TLS, backup/restore, submission assets.
-- Known issues: no production deployment; no push requested.
-- Next: deploy only on explicit user instruction.
+## 6. Deployment & Submission — Documentation & Local Demo Completed
+- Implemented:
+  - Submission-ready documentation suite: `README.md`, `AGENTS.md`, `docs/README.md`, `docs/features.md`, `docs/architecture.md`, `docs/api.md`, `docs/setup-and-deployment.md`, `docs/testing-and-quality.md`, and `docs/demo-and-submission.md`.
+  - 8-chapter Playwright CLI demonstration video (`demo/brightloop-hackathon-demo.mp4`, 4m 51s, 1600×1000 @ 30fps H.264) and verification artifacts (`demo/README.md`, `demo/video-verification.json`, `demo/verification/`).
+- Pending / Known boundaries:
+  - Remote GitHub Actions `backend` job passes on PostgreSQL 17 + Mailpit (`Run #41180459763`), while the remote `frontend` job fails 1 unit test in `src/lib/api.test.ts` because `.github/workflows/ci.yml` sets `NEXT_PUBLIC_API_URL: http://localhost:8080` instead of the default same-origin `/api/v1` proxy path.
+  - External cloud deployment and external video portal upload are not claimed and remain manual submission steps.
 
 ## Phase 1 acceptance ledger
 
@@ -208,3 +210,14 @@ Implemented and verified locally against all 20 Phase 1 acceptance criteria.
 | Frontend typecheck/build | Both passed;33 tests passed |
 | README setup commands | Local startup, Compose, seed, migration and test commands documented |
 | AGENTS/status updated | Durable instructions and all six phases documented |
+
+## Hackathon demonstration video — Completed locally (2026-10-31)
+
+- Scope: record the existing Phases 1–5 application with Playwright CLI; no application redesign or feature implementation.
+- Local services checked: frontend `localhost:3000`, backend Actuator health `UP`, native PostgreSQL, Mailpit HTTP API. Existing local environment credentials are read only into private temporary files and are excluded from captures.
+- Fictional demo fixtures: Ananya Menon (`example.test`), Kochi Workspace Suite / Pro support, Kochi Pro Monthly, product-specific illustrative 18% tax, subscription-scoped 10% discount, historical invoices/recorded payments, and a reusable quotation template. Changes use real local APIs and do not contact a payment gateway.
+- Acceptance results: `demo/brightloop-hackathon-demo.mp4`, 291.07 seconds (4m51s), 14,921,296 bytes, H.264/yuv420p, 1600×1000 at 30 fps. Eight real Playwright CLI browser sections with chapter cards, captions, cursor and highlights; WebM source retained. Full-file FFmpeg decode passed. Chromium playback advanced and reached the end at 16× speed. Sampled visual review confirmed readable workflow results; text artifact scan found neither demo nor admin passwords. No critical API responses or uncaught browser errors were captured during the recorded sections.
+- Workflow checks passed: one invoice for the October period; repeated same-period evaluation generated zero additional invoices; 1,000.00 partial payment then 1,973.60 final payment yielded PAID/0.00; pause/resume/renew retained history; quotation converted; reload persistence and customer ownership checks passed. Actual PDF and CSV downloads retained.
+- Known limitation found during visual QA: customer portal overview has correct counts/balances but an empty subscription array and null next billing date. The final video uses working customer-owned subscription list/detail pages instead, and the inaccurate overview shot is omitted. No application fix or mocked response was introduced.
+- Media limitations: silent video with explanatory captions; optional narration text supplied separately. Application test suites were not rerun for this media-only task; conclusion refers to existing documented coverage. Visual QA sampled frames; full decoding and browser playback checked the complete file.
+- Evidence and details: `demo/README.md`, `demo/video-verification.json`, `demo/verification/`, `demo/chapters.json`. Work is local on `codex/hackathon-demo-video`; no commit, push, upload, publication or submission performed. Existing application edits were preserved.
