@@ -147,13 +147,13 @@ public class SubscriptionService {
 
   @Transactional
   public SubscriptionDtos.View pause(Long id, SubscriptionDtos.PauseInput input) {
-    current.requireManager();
     var user = current.get();
     var s =
-        subscriptions
-            .lockById(id)
-            .map(value -> org.hibernate.Hibernate.unproxy(value, Subscription.class))
-            .orElseThrow(() -> ApiException.notFound("Subscription"));
+        owned(
+            subscriptions
+                .lockById(id)
+                .map(value -> org.hibernate.Hibernate.unproxy(value, Subscription.class))
+                .orElseThrow(() -> ApiException.notFound("Subscription")));
     if (s.state == SubscriptionState.PAUSED) {
       throw ApiException.conflict("Subscription is already paused");
     }
@@ -182,13 +182,13 @@ public class SubscriptionService {
 
   @Transactional
   public SubscriptionDtos.View resume(Long id, SubscriptionDtos.ResumeInput input) {
-    current.requireManager();
     var user = current.get();
     var s =
-        subscriptions
-            .lockById(id)
-            .map(value -> org.hibernate.Hibernate.unproxy(value, Subscription.class))
-            .orElseThrow(() -> ApiException.notFound("Subscription"));
+        owned(
+            subscriptions
+                .lockById(id)
+                .map(value -> org.hibernate.Hibernate.unproxy(value, Subscription.class))
+                .orElseThrow(() -> ApiException.notFound("Subscription")));
     if (s.state != SubscriptionState.PAUSED) {
       throw ApiException.conflict(
           "Only PAUSED subscriptions can be resumed (current state: " + s.state + ")");
@@ -236,13 +236,13 @@ public class SubscriptionService {
   @Transactional
   public SubscriptionDtos.View renew(
       Long id, SubscriptionDtos.RenewInput input, String headerIdempotencyKey) {
-    current.requireManager();
     var user = current.get();
     var s =
-        subscriptions
-            .lockById(id)
-            .map(value -> org.hibernate.Hibernate.unproxy(value, Subscription.class))
-            .orElseThrow(() -> ApiException.notFound("Subscription"));
+        owned(
+            subscriptions
+                .lockById(id)
+                .map(value -> org.hibernate.Hibernate.unproxy(value, Subscription.class))
+                .orElseThrow(() -> ApiException.notFound("Subscription")));
     var plan = org.hibernate.Hibernate.unproxy(s.plan, Plan.class);
     if (!plan.renewalAllowed) {
       throw ApiException.conflict("Plan '" + plan.name + "' does not allow subscription renewal");
@@ -330,13 +330,13 @@ public class SubscriptionService {
 
   @Transactional
   public SubscriptionDtos.View closeEarly(Long id, SubscriptionDtos.CloseInput input) {
-    current.requireManager();
     var user = current.get();
     var s =
-        subscriptions
-            .lockById(id)
-            .map(value -> org.hibernate.Hibernate.unproxy(value, Subscription.class))
-            .orElseThrow(() -> ApiException.notFound("Subscription"));
+        owned(
+            subscriptions
+                .lockById(id)
+                .map(value -> org.hibernate.Hibernate.unproxy(value, Subscription.class))
+                .orElseThrow(() -> ApiException.notFound("Subscription")));
     if (s.state == SubscriptionState.CLOSED) {
       throw ApiException.conflict("Subscription is already closed");
     }

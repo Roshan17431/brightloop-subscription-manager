@@ -7,6 +7,7 @@ import { Empty, Loading } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { AuthScreen } from "@/features/auth/auth-screen";
 import { Dashboard } from "@/features/dashboard/dashboard";
+import { FinancialReports } from "@/features/analytics/reports";
 import {
   CatalogList,
   CatalogDetail,
@@ -87,6 +88,10 @@ function Workspace({ path, user }: { path: string[]; user: User }) {
     />
   );
   if (section === "dashboard") return <Dashboard user={user} />;
+  if (section === "reports") {
+    if (user.role === "CUSTOMER") return forbidden();
+    return <FinancialReports user={user} />;
+  }
   if (section === "profile")
     return user.role === "CUSTOMER" ? (
       <CustomerEditor profile user={user} />

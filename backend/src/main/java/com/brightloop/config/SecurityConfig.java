@@ -114,6 +114,7 @@ public class SecurityConfig {
                         HttpMethod.GET,
                         "/api/v1/customers",
                         "/api/v1/billing/**",
+                        "/api/v1/analytics/**",
                         "/api/v1/quotation-templates",
                         "/api/v1/quotation-templates/**")
                     .hasAnyRole("ADMIN", "STAFF")
@@ -121,11 +122,6 @@ public class SecurityConfig {
                         HttpMethod.POST,
                         "/api/v1/customers",
                         "/api/v1/subscriptions/*/transition",
-                        "/api/v1/subscriptions/*/pause",
-                        "/api/v1/subscriptions/*/resume",
-                        "/api/v1/subscriptions/*/renew",
-                        "/api/v1/subscriptions/*/close",
-                        "/api/v1/subscriptions/*/early-close",
                         "/api/v1/invoices/**",
                         "/api/v1/payments",
                         "/api/v1/payments/**",

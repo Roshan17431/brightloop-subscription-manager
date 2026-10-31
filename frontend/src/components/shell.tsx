@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   ArrowUpRight,
+  BarChart3,
   Boxes,
   CalendarClock,
   ChevronDown,
@@ -84,6 +85,7 @@ export function Shell({
     { label: "Payments", href: "/payments", icon: Wallet },
     ...(user.role !== "CUSTOMER"
       ? [
+          { label: "Reports", href: "/reports", icon: BarChart3 },
           { label: "Billing", href: "/billing", icon: CalendarClock },
           { label: "Customers", href: "/customers", icon: Users },
           { label: "Products", href: "/products", icon: Package },
