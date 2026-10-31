@@ -54,7 +54,7 @@ export async function api<T>(
   );
 }
 export function queryString(
-  values: Record<string, string | number | undefined>,
+  values: Record<string, string | number | boolean | undefined>,
 ) {
   const params = new URLSearchParams();
   Object.entries(values).forEach(([key, value]) => {

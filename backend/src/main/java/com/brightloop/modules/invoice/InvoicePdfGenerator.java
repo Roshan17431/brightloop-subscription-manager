@@ -63,8 +63,15 @@ public final class InvoicePdfGenerator {
             "Discount" + (inv.discountName != null ? " (" + inv.discountName + "):" : ":"),
             inv.discountAmount.toPlainString()));
     lines.add(String.format("%54s %15s", "Tax Amount:", inv.taxAmount.toPlainString()));
+    lines.add(String.format("%54s %15s", "Invoice Total:", inv.total.toPlainString()));
+    var paid = inv.amountPaid != null ? inv.amountPaid : java.math.BigDecimal.ZERO.setScale(2);
+    var balance =
+        (inv.state == InvoiceState.CANCELLED || inv.state == InvoiceState.PAID)
+            ? java.math.BigDecimal.ZERO.setScale(2)
+            : inv.total.subtract(paid).max(java.math.BigDecimal.ZERO.setScale(2));
+    lines.add(String.format("%54s %15s", "Amount Paid:", paid.toPlainString()));
     lines.add("======================================================================");
-    lines.add(String.format("%54s %15s", "TOTAL DUE:", inv.total.toPlainString()));
+    lines.add(String.format("%54s %15s", "TOTAL DUE:", balance.toPlainString()));
     lines.add("======================================================================");
 
     StringBuilder stream = new StringBuilder();

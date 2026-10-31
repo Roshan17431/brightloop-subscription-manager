@@ -135,8 +135,33 @@ The strict lifecycle is `DRAFT → QUOTATION → CONFIRMED → ACTIVE → CLOSED
 | GET | `/invoices/{id}/pdf` | Download binary `application/pdf` invoice document |
 | POST | `/invoices/{id}/transition` | Staff/Admin transition (`CONFIRMED`, `CANCELLED`; `PAID` requires Phase 3 payment evidence) |
 | POST | `/invoices/{id}/confirm` | Staff/Admin confirm draft invoice |
-| POST | `/invoices/{id}/cancel` | Staff/Admin cancel draft or confirmed invoice |
+| POST | `/invoices/{id}/cancel` | Staff/Admin cancel draft or unpaid confirmed invoice |
+| POST | `/invoices/{id}/settle-zero` | Staff/Admin settle a confirmed `0.00` invoice as `PAID` without fake payment rows |
+| POST | `/invoices/{id}/follow-up` | Staff/Admin record overdue collection follow-up notes (`{notes}`) |
 | POST | `/invoices/{id}/send` | Staff/Admin deliver invoice email via SMTP |
+
+## Payments, Subscription Lifecycle, and Quotations (Phase 3)
+
+| Method | Path after `/api/v1` | Purpose |
+| --- | --- | --- |
+| GET | `/payments` | Paginated payment list (`q`, `invoiceId`, `customerId`, `method`, `status`, `fromDate`, `toDate`); customer-isolated |
+| GET | `/payments/{id}` | Payment detail with reconciled invoice totals; customer-isolated |
+| POST | `/payments` | Staff/Admin record full or partial payment (`{invoiceId, method, amount, paymentDate, paymentReference, idempotencyKey, note}`) |
+| GET | `/invoices/{invoiceId}/payments` | Payment history for an invoice; customer-isolated |
+| POST | `/invoices/{invoiceId}/payments` | Staff/Admin record payment for a specific invoice |
+| POST | `/payments/{id}/reverse` | Staff/Admin reverse a recorded payment (`{reason, reversalReference}`) and reconcile invoice |
+| POST | `/subscriptions/{id}/pause` | Staff/Admin pause an `ACTIVE` subscription (`{pauseDate, reason}`); requires `plan.pausingAllowed` |
+| POST | `/subscriptions/{id}/resume` | Staff/Admin resume a `PAUSED` subscription (`{resumeDate}`) and shift billing/expiry dates |
+| POST | `/subscriptions/{id}/renew` | Staff/Admin renew an `ACTIVE` or `CLOSED` subscription (`{newExpiryDate, periods, idempotencyKey}`); requires `plan.renewalAllowed` |
+| POST | `/subscriptions/{id}/close` (or `/early-close`) | Staff/Admin early-close subscription (`{reason, closeDate}`); requires `plan.earlyClosingAllowed` |
+| GET, POST | `/quotation-templates` | Staff/Admin list or create reusable quotation templates |
+| GET, PUT | `/quotation-templates/{id}` | Staff/Admin read or update quotation template |
+| POST | `/quotation-templates/{id}/generate` | Staff/Admin generate customer quotation from template (`{customerId, issueDate, validUntil, startDate, expiryDate, paymentTerms, notes}`) |
+| GET, POST | `/quotations` | List quotations (customer-isolated) / Staff/Admin generate quotation |
+| GET | `/quotations/{id}` | Quotation detail with snapshotted lines and expiry status; customer-isolated |
+| POST | `/quotations/{id}/confirm` | Staff/Admin confirm an eligible, non-expired quotation |
+| POST | `/quotations/{id}/cancel` | Staff/Admin cancel a non-converted quotation |
+| POST | `/quotations/{id}/convert` | Staff/Admin convert quotation into an active subscription preserving price snapshots |
 
 ## Executable HTTP verification
 

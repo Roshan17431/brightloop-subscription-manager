@@ -96,6 +96,9 @@ public class Invoice extends RecordEntity {
   @Column(nullable = false, precision = 19, scale = 2)
   public BigDecimal total;
 
+  @Column(name = "amount_paid", nullable = false, precision = 19, scale = 2)
+  public BigDecimal amountPaid = BigDecimal.ZERO.setScale(2);
+
   @Column(name = "idempotency_key", nullable = false, unique = true, length = 120)
   public String idempotencyKey;
 
@@ -116,6 +119,15 @@ public class Invoice extends RecordEntity {
 
   @Column(name = "sent_at")
   public Instant sentAt;
+
+  @Column(name = "last_followup_at")
+  public Instant lastFollowupAt;
+
+  @Column(name = "followup_notes", length = 1000)
+  public String followupNotes;
+
+  @Column(name = "followup_by", length = 254)
+  public String followupBy;
 
   @Column(length = 2000)
   public String notes;

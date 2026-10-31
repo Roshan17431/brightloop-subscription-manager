@@ -11,6 +11,7 @@ import {
   ChevronDown,
   CircleHelp,
   CreditCard,
+  FileSpreadsheet,
   FileText,
   LayoutDashboard,
   Layers3,
@@ -22,6 +23,7 @@ import {
   ReceiptText,
   Settings2,
   Users,
+  Wallet,
   X,
 } from "lucide-react";
 import { api, ApiError, errorMessage } from "@/lib/api";
@@ -77,7 +79,9 @@ export function Shell({
   const nav = [
     { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { label: "Subscriptions", href: "/subscriptions", icon: CreditCard },
+    { label: "Quotations", href: "/quotations", icon: FileSpreadsheet },
     { label: "Invoices", href: "/invoices", icon: FileText },
+    { label: "Payments", href: "/payments", icon: Wallet },
     ...(user.role !== "CUSTOMER"
       ? [
           { label: "Billing", href: "/billing", icon: CalendarClock },

@@ -9,6 +9,9 @@ export function ConfirmDialog({
   children,
   onConfirm,
   pending,
+  confirmLabel = "Delete record",
+  pendingLabel = "Deleting…",
+  variant = "destructive",
 }: {
   open: boolean;
   onOpenChange: (value: boolean) => void;
@@ -16,6 +19,9 @@ export function ConfirmDialog({
   children: React.ReactNode;
   onConfirm: () => void;
   pending?: boolean;
+  confirmLabel?: string;
+  pendingLabel?: string;
+  variant?: "default" | "destructive" | "outline";
 }) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -35,11 +41,11 @@ export function ConfirmDialog({
               Cancel
             </Button>
             <Button
-              variant="destructive"
+              variant={variant}
               disabled={pending}
               onClick={onConfirm}
             >
-              {pending ? "Deleting…" : "Delete record"}
+              {pending ? pendingLabel : confirmLabel}
             </Button>
           </div>
           <DialogPrimitive.Close

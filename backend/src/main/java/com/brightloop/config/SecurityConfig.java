@@ -111,13 +111,33 @@ public class SecurityConfig {
                         "/api/v1/discount-rules/**")
                     .hasRole("ADMIN")
                     .requestMatchers(
-                        HttpMethod.GET, "/api/v1/customers", "/api/v1/billing/**")
+                        HttpMethod.GET,
+                        "/api/v1/customers",
+                        "/api/v1/billing/**",
+                        "/api/v1/quotation-templates",
+                        "/api/v1/quotation-templates/**")
                     .hasAnyRole("ADMIN", "STAFF")
                     .requestMatchers(
                         HttpMethod.POST,
                         "/api/v1/customers",
                         "/api/v1/subscriptions/*/transition",
-                        "/api/v1/invoices/**")
+                        "/api/v1/subscriptions/*/pause",
+                        "/api/v1/subscriptions/*/resume",
+                        "/api/v1/subscriptions/*/renew",
+                        "/api/v1/subscriptions/*/close",
+                        "/api/v1/subscriptions/*/early-close",
+                        "/api/v1/invoices/**",
+                        "/api/v1/payments",
+                        "/api/v1/payments/**",
+                        "/api/v1/quotation-templates",
+                        "/api/v1/quotation-templates/**",
+                        "/api/v1/quotations",
+                        "/api/v1/quotations/**")
+                    .hasAnyRole("ADMIN", "STAFF")
+                    .requestMatchers(
+                        HttpMethod.PUT,
+                        "/api/v1/quotation-templates",
+                        "/api/v1/quotation-templates/**")
                     .hasAnyRole("ADMIN", "STAFF")
                     .anyRequest()
                     .authenticated())

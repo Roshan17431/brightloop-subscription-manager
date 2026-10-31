@@ -27,6 +27,17 @@ import {
 } from "@/features/subscriptions/subscriptions";
 import { InvoiceList, InvoiceDetail } from "@/features/billing/invoices";
 import {
+  PaymentList,
+  PaymentDetail,
+  RecordPaymentEditor,
+} from "@/features/payments/payments";
+import {
+  QuotationList,
+  QuotationDetail,
+  QuotationTemplateDetail,
+  QuotationTemplateEditor,
+} from "@/features/quotations/quotations";
+import {
   BillingDashboard,
   BillingRunDetail,
 } from "@/features/billing/billing";
@@ -114,6 +125,26 @@ function Workspace({ path, user }: { path: string[]; user: User }) {
   if (section === "invoices") {
     if (!id) return <InvoiceList user={user} />;
     return <InvoiceDetail id={id} user={user} />;
+  }
+  if (section === "payments") {
+    if (!id) return <PaymentList user={user} />;
+    if (id === "new") {
+      if (user.role === "CUSTOMER") return forbidden();
+      return <RecordPaymentEditor />;
+    }
+    return <PaymentDetail id={id} user={user} />;
+  }
+  if (section === "quotations") {
+    if (!id) return <QuotationList user={user} />;
+    return <QuotationDetail id={id} user={user} />;
+  }
+  if (section === "quotation-templates") {
+    if (user.role === "CUSTOMER") return forbidden();
+    if (!id) return <QuotationList user={user} initialTab="templates" />;
+    if (id === "new" || action === "edit") {
+      return <QuotationTemplateEditor id={id === "new" ? undefined : id} />;
+    }
+    return <QuotationTemplateDetail id={id} user={user} />;
   }
   if (section === "billing") {
     if (user.role === "CUSTOMER") return forbidden();
