@@ -22,11 +22,29 @@ Implemented and verified locally against all 20 Phase 1 acceptance criteria.
 - Files changed: backend/, frontend/, infrastructure/, docs/, .github/, AGENTS.md, README.md, docker-compose.yml and .gitignore. Work remains local on codex/phase-1; no push performed.
 - Next: Phase2 transactional billing/invoicing; read project memory and agree detailed billing rules before implementation.
 
-## 2. Billing & Invoicing — Not started
-- Implemented/files/tests: none.
-- Pending: transactional recurring invoicing, idempotency, invoice lifecycle, tax and discount engines, quotation templates.
-- Known issues: out of Phase 1 scope.
-- Next: agree detailed billing requirements and implement with PostgreSQL integration tests.
+## 2. Billing & Invoicing — Completed
+- Implemented:
+  - Transactional recurring billing engine (`com.brightloop.modules.billing`) supporting `DAILY`, `WEEKLY`, `MONTHLY`, and `YEARLY` billing periods, end-of-month anchor preservation (`Jan 31 -> Feb 28 -> Mar 31 -> Apr 30`), and leap-year handling.
+  - Scheduled daily execution (`BillingScheduler`, `@Scheduled`) and admin-triggered billing (`POST /api/v1/billing/run`, `GET /api/v1/billing/due`, `GET /api/v1/billing/runs`, `POST /api/v1/billing/runs/{id}/retry`).
+  - Automatic subscription expiry handling: expired `ACTIVE` subscriptions (`expiryDate < billingDate`) are automatically transitioned to `CLOSED` (`SUBSCRIPTION_EXPIRED_CLOSED`), and plans with `automaticClosing = true` close upon completing their final billing cycle.
+  - Database-enforced duplicate invoice prevention (`uq_invoices_subscription_period` on `(subscription_id, billing_period_start)` and unique `idempotency_key`), pessimistic row-level locks (`SELECT ... FOR UPDATE`), per-subscription `PROPAGATION_REQUIRES_NEW` transaction isolation, rollback atomicity, and retry safety (`attemptCount` tracking).
+  - Invoice lifecycle (`DRAFT`, `CONFIRMED`, `PAID`, `CANCELLED`), historical customer/plan/product/variant/discount/tax snapshots, search/filter/pagination, customer ownership isolation, self-contained PDF 1.4 export (`GET /api/v1/invoices/{id}/pdf`), print layout, and SMTP email delivery (`POST /api/v1/invoices/{id}/send`). Invoices cannot be marked `PAID` without recorded payment evidence (enforced in both `Rules.invoiceTransition` and database `CHECK` constraint; full payment processing belongs to Phase 3).
+  - Admin-managed tax rules (`com.brightloop.modules.tax`: product-specific, product-type, and default percentage rules with effective dates) and discount rules (`com.brightloop.modules.discount`: `PERCENTAGE` and `FIXED` discounts, `SUBSCRIPTION` and `PRODUCT` scopes, date validity, minimum quantity/purchase thresholds, and concurrency-safe `PESSIMISTIC_WRITE` usage limit tracking).
+  - Frontend workspace screens (`frontend/src/features/billing/*`): Invoice list/detail/actions (Confirm, Cancel, Email, Export PDF, Print), Billing execution controls & due preview, Billing execution history & retry, Tax rules CRUD, Discount rules CRUD, and Subscription detail schedule & generated invoices table.
+- Files changed:
+  - `backend/src/main/resources/db/migration/V4__billing_invoicing_taxes_discounts.sql`
+  - `backend/src/main/java/com/brightloop/modules/{tax,discount,invoice,billing}/*`
+  - `backend/src/main/java/com/brightloop/modules/subscription/{Subscription,SubscriptionDtos,SubscriptionRepository,SubscriptionService}.java`
+  - `backend/src/main/java/com/brightloop/validation/Rules.java`, `config/SecurityConfig.java`, `BrightloopApplication.java`
+  - `backend/src/test/java/com/brightloop/validation/RulesTest.java`, `backend/src/test/java/com/brightloop/integration/Phase2BillingIntegrationTest.java`
+  - `frontend/src/features/billing/{schemas.ts,invoices.tsx,billing.tsx,taxes-discounts.tsx,billing.test.tsx}`
+  - `frontend/src/lib/types.ts`, `frontend/src/components/{shell.tsx,shared.tsx}`, `frontend/src/features/subscriptions/subscriptions.tsx`, `frontend/src/app/[[...path]]/page.tsx`, `frontend/src/app/globals.css`
+- Tests executed:
+  - Backend `mvn verify`: 31 tests passed, 0 failures, 0 errors, 0 skips against PostgreSQL 17.11 (including `Phase2BillingIntegrationTest` covering end-of-month/cycle advancement, taxes/discounts, idempotency, 4-thread concurrent billing and single-use discount locking, mid-transaction fault rollback and retry safety, expiry auto-closing, authorization, PDF export, and SMTP email delivery).
+  - Frontend `npm run typecheck`, `npm test` (6 files / 37 tests), and `npm run build`: all passed.
+- Pending / Known boundaries:
+  - Payment recording, payment reconciliation, and transitioning confirmed invoices to `PAID` with payment records belong to Phase 3.
+- Next: Phase 3 payments, payment reconciliation, overdue tracking, and full lifecycle automation.
 
 ## 3. Payments & Subscription Lifecycle — Not started
 - Implemented/files/tests: none for payments; Phase 1 includes core sequential subscription states only.

@@ -116,6 +116,9 @@ public class SubscriptionService {
     }
     var previous = s.state;
     s.state = next;
+    if (next == SubscriptionState.ACTIVE && s.lastBilledDate == null) {
+      s.nextBillingDate = s.startDate;
+    }
     subscriptions.saveAndFlush(s);
     audit.record(
         "SUBSCRIPTION_STATE_CHANGED", "SUBSCRIPTION", s.id, "from=" + previous + ",to=" + next);
@@ -209,6 +212,7 @@ public class SubscriptionService {
     s.planName = plan.name;
     s.startDate = input.startDate();
     s.expiryDate = input.expiryDate();
+    s.nextBillingDate = input.startDate();
     s.paymentTerms = input.paymentTerms().trim();
     s.total = total;
   }

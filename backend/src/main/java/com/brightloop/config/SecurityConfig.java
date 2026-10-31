@@ -82,16 +82,42 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/v1/staff", "/api/v1/users/**")
                     .hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.POST, "/api/v1/products", "/api/v1/plans")
+                    .requestMatchers(
+                        HttpMethod.POST,
+                        "/api/v1/products",
+                        "/api/v1/plans",
+                        "/api/v1/taxes",
+                        "/api/v1/tax-rules",
+                        "/api/v1/discounts",
+                        "/api/v1/discount-rules",
+                        "/api/v1/billing/**")
                     .hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.PUT, "/api/v1/products/**", "/api/v1/plans/**")
+                    .requestMatchers(
+                        HttpMethod.PUT,
+                        "/api/v1/products/**",
+                        "/api/v1/plans/**",
+                        "/api/v1/taxes/**",
+                        "/api/v1/tax-rules/**",
+                        "/api/v1/discounts/**",
+                        "/api/v1/discount-rules/**")
                     .hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.DELETE, "/api/v1/products/**", "/api/v1/plans/**")
+                    .requestMatchers(
+                        HttpMethod.DELETE,
+                        "/api/v1/products/**",
+                        "/api/v1/plans/**",
+                        "/api/v1/taxes/**",
+                        "/api/v1/tax-rules/**",
+                        "/api/v1/discounts/**",
+                        "/api/v1/discount-rules/**")
                     .hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.GET, "/api/v1/customers")
+                    .requestMatchers(
+                        HttpMethod.GET, "/api/v1/customers", "/api/v1/billing/**")
                     .hasAnyRole("ADMIN", "STAFF")
                     .requestMatchers(
-                        HttpMethod.POST, "/api/v1/customers", "/api/v1/subscriptions/*/transition")
+                        HttpMethod.POST,
+                        "/api/v1/customers",
+                        "/api/v1/subscriptions/*/transition",
+                        "/api/v1/invoices/**")
                     .hasAnyRole("ADMIN", "STAFF")
                     .anyRequest()
                     .authenticated())
@@ -150,7 +176,7 @@ public class SecurityConfig {
     var config = new CorsConfiguration();
     config.setAllowedOrigins(List.of(frontend));
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-    config.setAllowedHeaders(List.of("Content-Type", "X-CSRF-TOKEN"));
+    config.setAllowedHeaders(List.of("Content-Type", "X-CSRF-TOKEN", "Idempotency-Key"));
     config.setAllowCredentials(true);
     config.setMaxAge(3600L);
     var source = new UrlBasedCorsConfigurationSource();

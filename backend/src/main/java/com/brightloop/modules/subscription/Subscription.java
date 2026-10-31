@@ -33,6 +33,11 @@ public class Subscription extends RecordEntity {
   @Column(nullable = false)
   public LocalDate expiryDate;
 
+  @Column(nullable = false)
+  public LocalDate nextBillingDate;
+
+  public LocalDate lastBilledDate;
+
   @Column(nullable = false, length = 1000)
   public String paymentTerms;
 

@@ -62,7 +62,7 @@ export function NewButton({
 export function Badge({ value }: { value: string }) {
   return (
     <span
-      className={`badge ${["ACTIVE", "CONFIRMED"].includes(value) ? "badge-green" : ["INACTIVE", "CLOSED"].includes(value) ? "badge-gray" : "badge-violet"}`}
+      className={`badge ${["ACTIVE", "CONFIRMED", "PAID", "COMPLETED", "INVOICED"].includes(value) ? "badge-green" : ["INACTIVE", "CLOSED", "CANCELLED", "FAILED", "EXPIRED_CLOSED", "SKIPPED"].includes(value) ? "badge-gray" : "badge-violet"}`}
     >
       <span className="size-1.5 rounded-full bg-current" />
       {human(value)}
