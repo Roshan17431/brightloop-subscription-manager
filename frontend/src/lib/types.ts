@@ -385,3 +385,291 @@ export type BillingRun = {
   errorSummary?: string;
   items: BillingRunItem[];
 };
+
+export const granularities = ["DAILY", "MONTHLY", "YEARLY"] as const;
+export type Granularity = (typeof granularities)[number];
+
+export const billingPeriods = [
+  "DAILY",
+  "WEEKLY",
+  "MONTHLY",
+  "YEARLY",
+] as const;
+export type BillingPeriod = (typeof billingPeriods)[number];
+
+export type AnalyticsFilters = {
+  fromDate?: string;
+  toDate?: string;
+  asOfDate?: string;
+  granularity?: Granularity;
+  customerId?: string;
+  planId?: string;
+  billingPeriod?: string;
+  subscriptionState?: string;
+  invoiceState?: string;
+  paymentMethod?: string;
+  windowDays?: number;
+};
+
+export type RecentInvoiceItem = {
+  id: number;
+  invoiceNumber: string;
+  subscriptionId: number;
+  subscriptionNumber: string;
+  customerId: number;
+  customerName: string;
+  planName: string;
+  issueDate: string;
+  dueDate: string;
+  state: InvoiceState;
+  subtotal: number | string;
+  discountAmount: number | string;
+  taxAmount: number | string;
+  total: number | string;
+  amountPaid: number | string;
+  balanceDue: number | string;
+  overdue: boolean;
+};
+
+export type RecentPaymentItem = {
+  id: number;
+  paymentReference: string;
+  invoiceId: number;
+  invoiceNumber: string;
+  customerId: number;
+  customerName: string;
+  method: PaymentMethod;
+  amount: number | string;
+  paymentDate: string;
+  status: PaymentStatus;
+  recordedBy: string;
+};
+
+export type UpcomingRenewalItem = {
+  subscriptionId: number;
+  subscriptionNumber: string;
+  customerId: number;
+  customerName: string;
+  planId: number;
+  planName: string;
+  billingPeriod: BillingPeriod;
+  state: SubscriptionState;
+  nextBillingDate: string;
+  expiryDate: string;
+  daysUntilBilling: number;
+  renewalAllowed: boolean;
+  cycleAmount: number | string;
+  mrrContribution: number | string;
+};
+
+export type ExpiringSubscriptionItem = {
+  subscriptionId: number;
+  subscriptionNumber: string;
+  customerId: number;
+  customerName: string;
+  planId: number;
+  planName: string;
+  billingPeriod: BillingPeriod;
+  state: SubscriptionState;
+  expiryDate: string;
+  daysUntilExpiry: number;
+  renewalAllowed: boolean;
+  cycleAmount: number | string;
+  mrrContribution: number | string;
+};
+
+export type AnalyticsOverview = {
+  asOfDate: string;
+  fromDate?: string;
+  toDate?: string;
+  totalSubscriptions: number;
+  activeSubscriptions: number;
+  pausedSubscriptions: number;
+  closedSubscriptions: number;
+  draftSubscriptions: number;
+  quotationSubscriptions: number;
+  confirmedSubscriptions: number;
+  newSubscriptions: number;
+  mrr: number | string;
+  arr: number | string;
+  pausedMrr: number | string;
+  pausedArr: number | string;
+  invoicedSubtotal: number | string;
+  invoicedDiscount: number | string;
+  invoicedTax: number | string;
+  invoicedRevenue: number | string;
+  collectedPayments: number | string;
+  outstandingReceivables: number | string;
+  overdueInvoiceCount: number;
+  overdueAmount: number | string;
+  upcomingRenewalsCount: number;
+  expiringSubscriptionsCount: number;
+  recentInvoices: RecentInvoiceItem[];
+  recentPayments: RecentPaymentItem[];
+  upcomingRenewals: UpcomingRenewalItem[];
+  expiringSubscriptions: ExpiringSubscriptionItem[];
+};
+
+export type RevenueTrendPoint = {
+  period: string;
+  label: string;
+  invoiceCount: number;
+  subtotal: number | string;
+  discountAmount: number | string;
+  taxAmount: number | string;
+  invoicedRevenue: number | string;
+  collectedPayments: number | string;
+  outstandingAmount: number | string;
+};
+
+export type RevenueAnalytics = {
+  granularity: Granularity;
+  fromDate?: string;
+  toDate?: string;
+  totalInvoicedSubtotal: number | string;
+  totalInvoicedDiscount: number | string;
+  totalInvoicedTax: number | string;
+  totalInvoicedRevenue: number | string;
+  totalCollectedPayments: number | string;
+  totalOutstandingReceivables: number | string;
+  collectionRatePercent: number | string;
+  series: RevenueTrendPoint[];
+};
+
+export type StatusCountItem = {
+  state: SubscriptionState;
+  count: number;
+  mrr: number | string;
+  arr: number | string;
+};
+
+export type PlanBreakdownItem = {
+  planId: number;
+  planName: string;
+  billingPeriod: BillingPeriod;
+  activeCount: number;
+  pausedCount: number;
+  closedCount: number;
+  totalCount: number;
+  mrr: number | string;
+  arr: number | string;
+};
+
+export type FrequencyBreakdownItem = {
+  billingPeriod: BillingPeriod;
+  activeCount: number;
+  pausedCount: number;
+  totalCount: number;
+  mrr: number | string;
+  arr: number | string;
+};
+
+export type SubscriptionAnalytics = {
+  totalSubscriptions: number;
+  activeSubscriptions: number;
+  pausedSubscriptions: number;
+  closedSubscriptions: number;
+  newSubscriptions: number;
+  mrr: number | string;
+  arr: number | string;
+  pausedMrr: number | string;
+  pausedArr: number | string;
+  byStatus: StatusCountItem[];
+  byPlan: PlanBreakdownItem[];
+  byBillingFrequency: FrequencyBreakdownItem[];
+};
+
+export type PaymentMethodBreakdownItem = {
+  method: PaymentMethod;
+  count: number;
+  amount: number | string;
+  sharePercent: number | string;
+};
+
+export type PaymentTrendPoint = {
+  period: string;
+  label: string;
+  paymentCount: number;
+  collectedAmount: number | string;
+  reversedAmount: number | string;
+};
+
+export type PaymentAnalytics = {
+  granularity: Granularity;
+  fromDate?: string;
+  toDate?: string;
+  completedPaymentCount: number;
+  reversedPaymentCount: number;
+  totalCollectedAmount: number | string;
+  totalReversedAmount: number | string;
+  byMethod: PaymentMethodBreakdownItem[];
+  series: PaymentTrendPoint[];
+};
+
+export type AgingBucketItem = {
+  bucket: string;
+  label: string;
+  invoiceCount: number;
+  amount: number | string;
+};
+
+export type OverdueInvoiceItem = {
+  invoiceId: number;
+  invoiceNumber: string;
+  subscriptionId: number;
+  subscriptionNumber: string;
+  customerId: number;
+  customerName: string;
+  customerEmail: string;
+  planName: string;
+  issueDate: string;
+  dueDate: string;
+  daysOverdue: number;
+  agingBucket: string;
+  total: number | string;
+  amountPaid: number | string;
+  balanceDue: number | string;
+};
+
+export type ReceivablesAnalytics = {
+  asOfDate: string;
+  openInvoiceCount: number;
+  totalOutstandingAmount: number | string;
+  overdueInvoiceCount: number;
+  totalOverdueAmount: number | string;
+  currentNotDueCount: number;
+  currentNotDueAmount: number | string;
+  agingBuckets: AgingBucketItem[];
+  topOverdueInvoices: OverdueInvoiceItem[];
+};
+
+export type RenewalsAnalytics = {
+  asOfDate: string;
+  windowDays: number;
+  upcomingRenewalsCount: number;
+  expiringSubscriptionsCount: number;
+  upcomingRenewals: UpcomingRenewalItem[];
+  expiringSubscriptions: ExpiringSubscriptionItem[];
+};
+
+export type CustomerPortalOverview = {
+  customerId: number;
+  customerName: string;
+  customerEmail: string;
+  companyName?: string;
+  activeSubscriptionCount: number;
+  pausedSubscriptionCount: number;
+  closedSubscriptionCount: number;
+  totalSubscriptionCount: number;
+  monthlyRecurringSpend: number | string;
+  totalBilledAmount: number | string;
+  totalPaidAmount: number | string;
+  outstandingBalance: number | string;
+  openInvoiceCount: number;
+  overdueInvoiceCount: number;
+  overdueBalance: number | string;
+  nextBillingDate?: string;
+  subscriptions: Subscription[];
+  recentInvoices: RecentInvoiceItem[];
+  recentPayments: RecentPaymentItem[];
+};

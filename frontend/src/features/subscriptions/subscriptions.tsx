@@ -347,17 +347,18 @@ export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
                 {billNow.isPending ? "Billing…" : "Generate due invoice"}
               </Button>
             )}
-            {user.role !== "CUSTOMER" && s.state === "ACTIVE" && (
-              <Button
-                variant="outline"
-                disabled={pauseMutation.isPending}
-                onClick={() => setPauseOpen(true)}
-              >
-                <Pause />
-                Pause
-              </Button>
-            )}
-            {user.role !== "CUSTOMER" && s.state === "PAUSED" && (
+            {s.state === "ACTIVE" &&
+              (user.role !== "CUSTOMER" || s.pausingAllowed) && (
+                <Button
+                  variant="outline"
+                  disabled={pauseMutation.isPending}
+                  onClick={() => setPauseOpen(true)}
+                >
+                  <Pause />
+                  Pause
+                </Button>
+              )}
+            {s.state === "PAUSED" && (
               <Button
                 disabled={resumeMutation.isPending}
                 onClick={() => setResumeOpen(true)}
@@ -366,8 +367,8 @@ export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
                 Resume subscription
               </Button>
             )}
-            {user.role !== "CUSTOMER" &&
-              (s.state === "ACTIVE" || s.state === "CLOSED") && (
+            {(s.state === "ACTIVE" || s.state === "CLOSED") &&
+              (user.role !== "CUSTOMER" || s.renewalAllowed) && (
                 <Button
                   variant="outline"
                   disabled={renewMutation.isPending}
@@ -377,10 +378,10 @@ export function SubscriptionDetail({ id, user }: { id: string; user: User }) {
                   Renew
                 </Button>
               )}
-            {user.role !== "CUSTOMER" &&
-              (s.state === "ACTIVE" ||
-                s.state === "PAUSED" ||
-                s.state === "CONFIRMED") && (
+            {(s.state === "ACTIVE" ||
+              s.state === "PAUSED" ||
+              s.state === "CONFIRMED") &&
+              (user.role !== "CUSTOMER" || s.earlyClosingAllowed) && (
                 <Button
                   variant="outline"
                   disabled={closeMutation.isPending}

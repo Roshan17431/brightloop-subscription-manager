@@ -163,6 +163,23 @@ The strict lifecycle is `DRAFT → QUOTATION → CONFIRMED → ACTIVE → CLOSED
 | POST | `/quotations/{id}/cancel` | Staff/Admin cancel a non-converted quotation |
 | POST | `/quotations/{id}/convert` | Staff/Admin convert quotation into an active subscription preserving price snapshots |
 
+## Financial Analytics, Reporting, and Customer Portal (Phase 4)
+
+All `/api/v1/analytics/**` endpoints are restricted to `ADMIN` and `STAFF` (`403 Forbidden` for `CUSTOMER`). They accept optional query parameters: `fromDate` (`YYYY-MM-DD`), `toDate` (`YYYY-MM-DD`), `asOfDate` (`YYYY-MM-DD`), `granularity` (`DAILY`, `MONTHLY`, `YEARLY`), `customerId`, `planId`, `billingPeriod` (`DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`), `subscriptionState`, `invoiceState`, `paymentMethod`, and `windowDays` (`1..365`, default `30`).
+
+| Method | Path after `/api/v1` | Purpose |
+| --- | --- | --- |
+| GET | `/analytics/overview` | Executive KPI summary (MRR, ARR, paused MRR, subscription counts, invoiced/collected/outstanding/overdue totals, recent invoices/payments, upcoming renewals, expiring subscriptions) |
+| GET | `/analytics/revenue` | Time-series revenue & cash collection breakdown (`DAILY`, `MONTHLY`, `YEARLY`) with pre-tax subtotal, discounts, taxes, invoiced total, collected payments, and collection rate % |
+| GET | `/analytics/subscriptions` | Subscription counts and normalized MRR/ARR breakdown by lifecycle status, plan, and billing frequency |
+| GET | `/analytics/payments` | Completed vs. reversed payment totals, breakdown by payment method with share %, and time-series collections |
+| GET | `/analytics/receivables` | Open receivables, current not-yet-due balance, overdue aging buckets (`1-30`, `31-60`, `61-90`, `90+` days), and top overdue invoices schedule |
+| GET | `/analytics/renewals` | Upcoming subscription billing dates and expiring subscriptions within `windowDays` |
+| GET | `/analytics/reports/export` | Download `text/csv` report for `section=revenue\|payments\|subscriptions\|receivables` |
+| GET | `/portal/overview` | Customer-scoped self-service portal summary (active/paused/closed subscriptions, monthly recurring spend, outstanding/overdue balance, next billing date, recent invoices, recent payments) |
+
+Customer accounts (`ROLE_CUSTOMER`) may also invoke `POST /api/v1/subscriptions/{id}/{pause,resume,renew,close,early-close}` on **their own** subscriptions when permitted by the subscription's plan (`pausingAllowed`, `renewalAllowed`, `earlyClosingAllowed`). Attempting to mutate another customer's subscription returns `403 Forbidden`.
+
 ## Executable HTTP verification
 
 Run the backend against a disposable development PostgreSQL database, provision an admin using the backend environment, and start Mailpit SMTP on port 1025 and its HTTP API on 8025. The Python runner uses real cookies, CSRF headers, HTTP requests, persisted records and delivered reset email. It has no third-party Python dependency.

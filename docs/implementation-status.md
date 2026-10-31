@@ -87,11 +87,44 @@ Implemented and verified locally against all 20 Phase 1 acceptance criteria.
   - Recorded payments represent ledger/operational reconciliation (not external live payment gateway webhooks). Advanced Phase 4 revenue analytics remain excluded by design.
 - Next: Phase 4 financial dashboards, revenue reporting, and analytics.
 
-## 4. Dashboards & Customer Portal — Not started (core shell included in Phase 1)
-- Implemented/files/tests: Phase 1 provides only operational counts and owned subscription/profile screens when verified.
-- Pending: revenue reporting, financial filters and full portal workflows.
-- Known issues: operational counts are not revenue analytics.
-- Next: derive financial reporting from verified invoices/payments.
+## 4. Dashboards & Customer Portal — Completed
+- Implemented:
+  - Financial Analytics & Reporting Module (`com.brightloop.modules.analytics`):
+    - Database-driven executive analytics endpoints under `/api/v1/analytics` (`GET /overview`, `/revenue`, `/subscriptions`, `/payments`, `/receivables`, `/renewals`, `/reports/export`) using `NamedParameterJdbcTemplate` SQL aggregations and composite indexes (`V6__analytics_indexes.sql`) with zero N+1 queries.
+    - Exact `BigDecimal` MRR and ARR calculations (`AnalyticsService.normalizeToMrr` & `mrrToArr`):
+      - Derived from active subscription line pre-tax subtotals (`unit_price * quantity`), minus applicable active recurring discounts (`DiscountService` eligibility/specificity rules), strictly excluding taxes.
+      - Normalized by plan `billing_period`: `MONTHLY = amount × 1`, `YEARLY = amount ÷ 12`, `WEEKLY = amount × 52 ÷ 12`, `DAILY = amount × 30` (`RoundingMode.HALF_UP`, scale 2), and `ARR = MRR × 12`.
+      - Paused subscriptions (`state = 'PAUSED'`) are excluded from active `mrr`/`arr` and reported separately as `pausedMrr`/`pausedArr` (on-hold recurring revenue) so active recurring revenue is never overstated; `DRAFT`, `QUOTATION`, `CONFIRMED`, and `CLOSED` subscriptions contribute `0.00` to active MRR.
+    - Revenue & Payment Analytics:
+      - Time-series revenue trends by `DAILY`, `MONTHLY`, and `YEARLY` granularity distinguishing pre-tax invoiced subtotal, applied discounts, taxes, total invoiced revenue, collected payments, open balance, and collection rate percentage.
+      - Payment velocity over time and breakdown by payment method (`BANK_TRANSFER`, `CASH`, `UPI`, `CARD`, `OTHER`) with share percentages and reversal tracking.
+    - Receivables & Overdue Aging Buckets:
+      - Open balance tracking across `CONFIRMED` invoices (`total - amount_paid`), distinguishing current not-yet-due balances from overdue balances (`due_date < asOfDate`).
+      - Four overdue aging buckets (`1-30`, `31-60`, `61-90`, `90+` days overdue) plus top overdue invoices schedule.
+    - Subscription Analytics & Renewals:
+      - Counts and MRR/ARR breakdowns by subscription status (`DRAFT`, `QUOTATION`, `CONFIRMED`, `ACTIVE`, `PAUSED`, `CLOSED`), by plan, and by billing frequency, plus upcoming billing/renewals and expiring subscriptions within configurable `windowDays`.
+    - Advanced Filtering & CSV Export:
+      - Supports filtering across `fromDate`, `toDate`, `asOfDate`, `granularity`, `customerId`, `planId`, `billingPeriod`, `subscriptionState`, `invoiceState`, and `paymentMethod`, plus RFC-compliant CSV export (`GET /api/v1/analytics/reports/export?section=revenue|payments|subscriptions|receivables`).
+  - Customer Self-Service Portal (`GET /api/v1/portal/overview` & `/dashboard`):
+    - Customer-isolated self-service dashboard displaying active/paused/closed subscription counts, pre-tax monthly recurring spend, total billed, total paid, open/overdue balance alerts, earliest next billing date, recent invoices with one-click PDF download (`/api/v1/invoices/{id}/pdf`), and payment history.
+    - Self-service subscription lifecycle actions: `CUSTOMER` accounts can pause, resume, renew, and early-close their own subscriptions when allowed by the associated plan (`pausingAllowed`, `renewalAllowed`, `earlyClosingAllowed`), while `SubscriptionService.owned(...)` and `SecurityConfig` enforce strict ownership isolation (`403 Forbidden` on other customers' records and on all `/api/v1/analytics/**` endpoints).
+  - Frontend Executive Dashboard & Financial Reports (`frontend/src/features/dashboard/*`, `frontend/src/features/analytics/reports.tsx`):
+    - Executive Dashboard (`/dashboard` for `ADMIN`/`STAFF`) with 6-filter bar, 12 KPI cards, 6 Recharts visualizations (`RevenueTrendChart`, `InvoicedVsCollectedChart`, `SubscriptionStatusChart`, `MrrByPlanChart`, `PaymentMethodsChart`, `OverdueAgingChart`), and 4 operational tables (Upcoming Renewals, Expiring Subscriptions, Recent Invoices, Recent Payments).
+    - Financial Reports screen (`/reports`) with 4 report tabs (Revenue, Payments, Subscriptions & MRR, Outstanding & Overdue Aging), search/filter bar, and one-click CSV export.
+- Files changed:
+  - `backend/src/main/resources/db/migration/V6__analytics_indexes.sql`
+  - `backend/src/main/java/com/brightloop/modules/analytics/{AnalyticsDtos,AnalyticsService,AnalyticsController}.java`
+  - `backend/src/main/java/com/brightloop/config/SecurityConfig.java`, `modules/subscription/SubscriptionService.java`
+  - `backend/src/test/java/com/brightloop/integration/Phase4AnalyticsPortalIntegrationTest.java`
+  - `frontend/src/features/dashboard/{dashboard.tsx,analytics-charts.tsx,dashboard.test.tsx}`
+  - `frontend/src/features/analytics/reports.tsx`, `frontend/src/features/subscriptions/subscriptions.tsx`
+  - `frontend/src/lib/types.ts`, `frontend/src/components/shell.tsx`, `frontend/src/app/[[...path]]/page.tsx`
+- Tests executed:
+  - Backend `mvn verify`: 41 tests passed, 0 failures, 0 errors, 0 skips against PostgreSQL 17.11 (including `Phase4AnalyticsPortalIntegrationTest` covering MRR/ARR normalization across `DAILY`/`WEEKLY`/`MONTHLY`/`YEARLY` plans, tax exclusion, recurring discount deduction, paused MRR separation, revenue/payment/receivables aging buckets, CSV export, customer portal ownership & self-service lifecycle authorization over HTTP, and a 2,500-subscription PostgreSQL bulk performance benchmark completing all analytics queries well under the 2,000ms SLA).
+  - Frontend `npm run typecheck`, `npm test` (8 files / 44 tests), and `npm run build`: all passed.
+- Known issues / boundaries:
+  - Phase 5 comprehensive security hardening and Phase 6 deployment/submission remain separate phases by design.
+- Next: Phase 5 testing, security & performance review.
 
 ## 5. Testing, Security & Performance — Not started (basic checks included in Phase 1)
 - Implemented/files/tests: Phase 1 test results recorded separately below once executed.
